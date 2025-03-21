@@ -20,11 +20,14 @@ RUN pip install --no-cache-dir flask==2.0.1 flask-cors==3.0.10 werkzeug==2.0.3
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Create necessary directories
-RUN mkdir -p /app/src /app/data /app/config /app/logs
+RUN mkdir -p /app/src/email /app/src/utils /app/data /app/config /app/logs
 
-# Copy source code
-COPY src/email/email_fetcher.py /app/src/email_fetcher.py
-COPY src/utils/timing.py /app/timing.py
+# Copy utility modules
+COPY src/utils/base_fetcher.py /app/src/utils/base_fetcher.py
+COPY src/utils/timing.py /app/src/utils/timing.py
+
+# Copy email fetcher (will be mounted in development)
+COPY src/email/email_fetcher.py /app/src/email/email_fetcher.py
 
 # Default command
-CMD ["python", "/app/src/email_fetcher.py"]
+CMD ["python", "/app/src/email/email_fetcher.py"]

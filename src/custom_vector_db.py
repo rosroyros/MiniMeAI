@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional, Tuple, Set
@@ -463,8 +463,9 @@ class AddRequest(BaseModel):
     ids: List[str]
 
 class QueryRequest(BaseModel):
-    query_embeddings: List[List[float]]
+    query_text: str
     n_results: Optional[int] = 10
+    filter: Optional[Dict[str, Dict[str, bool]]] = None
 
 class OptimizedQueryRequest(BaseModel):
     query_embeddings: List[List[float]]
@@ -537,60 +538,105 @@ async def query_collection(name: str, request: QueryRequest):
                 raise HTTPException(status_code=404, detail="Collection not found")
                 
         collection = collections[name]
-        n_results = min(request.n_results, len(collection.embeddings)) if collection.embeddings else 0
         
-        if not collection.embeddings or n_results == 0:
+        query_text = request.query_text.strip()
+        n_results = min(request.n_results, 100)  # Cap at 100 results
+        query_embeddings = []
+        
+        # Check if we should apply filters
+        filter_field_exists = None
+        filter_field_missing = None
+        
+        if hasattr(request, 'filter') and request.filter:
+            if isinstance(request.filter, dict):
+                filter_field_exists = request.filter.get("field_exists", {})
+                filter_field_missing = request.filter.get("field_missing", {})
+        
+        # Get indices of all documents
+        all_indices = list(range(len(collection.documents)))
+        filtered_indices = all_indices.copy()
+        
+        # Apply metadata filters if specified
+        if filter_field_exists or filter_field_missing:
+            filtered_indices = []
+            
+            for idx in all_indices:
+                metadata = collection.metadatas[idx]
+                
+                # Check if required fields exist
+                has_required_fields = True
+                if filter_field_exists:
+                    for field, value in filter_field_exists.items():
+                        if value and (field not in metadata or metadata[field] is None):
+                            has_required_fields = False
+                            break
+                
+                # Check if fields should be missing
+                has_missing_fields = True
+                if filter_field_missing:
+                    for field, value in filter_field_missing.items():
+                        if value and field in metadata and metadata[field] is not None:
+                            has_missing_fields = False
+                            break
+                
+                if has_required_fields and has_missing_fields:
+                    filtered_indices.append(idx)
+        
+        # If query text is empty, just return the filtered documents
+        if not query_text:
+            # Just return the filtered documents without semantic search
+            filtered_ids = [collection.ids[idx] for idx in filtered_indices[:n_results]]
+            filtered_documents = [collection.documents[idx] for idx in filtered_indices[:n_results]]
+            filtered_metadatas = [collection.metadatas[idx] for idx in filtered_indices[:n_results]]
+            
             return {
-                "ids": [[] for _ in request.query_embeddings],
-                "documents": [[] for _ in request.query_embeddings],
-                "metadatas": [[] for _ in request.query_embeddings],
-                "distances": [[] for _ in request.query_embeddings]
+                "ids": filtered_ids,
+                "documents": filtered_documents,
+                "metadatas": filtered_metadatas,
+                "distances": [0.0] * len(filtered_documents)
             }
-        
-        results = []
-        
-        # Process each query embedding
+
+        # If query has text, continue with embedding and semantic search
+        with Timer("Model inference"):
+            # Get query embedding from Azure/OpenAI API
+            query_embeddings = embedding.get_embeddings([query_text])[0]
+            
+        result_indices = []
+        result_distances = []
+            
+        # Perform semantic search on filtered indices
         with Timer("Search computation"):
-            for query_embedding in request.query_embeddings:
-                # Calculate similarities and find top n
-                similarities = []
+            similarities = []
+            
+            for idx in filtered_indices:
+                # Check cache first
+                embedding_to_check = collection.embeddings[idx]
+                cache_key = (tuple(query_embeddings), tuple(embedding_to_check))
                 
-                for i, embedding in enumerate(collection.embeddings):
-                    # Check cache first
-                    cache_key = (tuple(query_embedding), tuple(embedding))
-                    if cache_key in similarity_cache:
-                        similarity = similarity_cache[cache_key]
-                    else:
-                        similarity = cosine_similarity(query_embedding, embedding)
-                        similarity_cache[cache_key] = similarity
-                        
-                    similarities.append((i, similarity))
-                
-                # Sort by similarity (higher is better)
-                similarities.sort(key=lambda x: x[1], reverse=True)
-                
-                # Get top n
-                top_n = similarities[:n_results]
-                
-                # Extract results
-                ids = [collection.ids[i] for i, _ in top_n]
-                documents = [collection.documents[i] for i, _ in top_n]
-                metadatas = [collection.metadatas[i] for i, _ in top_n]
-                distances = [1 - sim for _, sim in top_n]  # Convert to distance
-                
-                results.append({
-                    "ids": ids,
-                    "documents": documents,
-                    "metadatas": metadatas,
-                    "distances": distances
-                })
+                if cache_key in similarity_cache:
+                    similarity = similarity_cache[cache_key]
+                else:
+                    similarity = cosine_similarity(query_embeddings, embedding_to_check)
+                    similarity_cache[cache_key] = similarity
+                    
+                similarities.append((idx, similarity))
+            
+            # Sort by similarity (higher is better)
+            similarities.sort(key=lambda x: x[1], reverse=True)
+            
+            # Get top n
+            top_n = similarities[:n_results]
+            
+            # Extract results
+            result_indices = [i for i, _ in top_n]
+            result_distances = [1 - sim for _, sim in top_n]  # Convert similarity to distance
         
         # Format final response
         response = {
-            "ids": [r["ids"] for r in results],
-            "documents": [r["documents"] for r in results],
-            "metadatas": [r["metadatas"] for r in results],
-            "distances": [r["distances"] for r in results]
+            "ids": [collection.ids[i] for i in result_indices],
+            "documents": [collection.documents[i] for i in result_indices],
+            "metadatas": [collection.metadatas[i] for i in result_indices],
+            "distances": result_distances
         }
         
         return response
@@ -618,7 +664,7 @@ async def query_collection_optimized(name: str, request: OptimizedQueryRequest):
     if not collection.optimized:
         logger.warning(f"Collection {name} is not optimized at all. Falling back to regular query.")
         return await query_collection(name, QueryRequest(
-            query_embeddings=query_embeddings,
+            query_text="",
             n_results=n_results
         ))
     
@@ -630,7 +676,7 @@ async def query_collection_optimized(name: str, request: OptimizedQueryRequest):
     if optimization_coverage < OPTIMIZATION_THRESHOLD:
         logger.warning(f"Collection {name} optimization coverage ({optimization_coverage:.1%}) below threshold ({OPTIMIZATION_THRESHOLD:.1%}). Falling back to regular query.")
         return await query_collection(name, QueryRequest(
-            query_embeddings=query_embeddings,
+            query_text="",
             n_results=n_results
         ))
     
@@ -782,6 +828,236 @@ async def get_collection_status(name: str):
         "next_hourly": next_hourly.isoformat(),
         "next_daily": tomorrow_2am.isoformat()
     }
+
+# Add a timestamp analysis endpoint
+@app.get("/api/v1/collections/{name}/timestamp_analysis")
+async def analyze_collection_timestamps(name: str):
+    """
+    Analyze timestamps in a collection and return statistics.
+    """
+    if name not in collections:
+        # Try to load it from disk
+        collection_dir = os.path.join(COLLECTIONS_DIR, name)
+        if os.path.exists(collection_dir):
+            collections[name] = Collection(name)
+            collections[name].load()
+        else:
+            raise HTTPException(status_code=404, detail="Collection not found")
+            
+    collection = collections[name]
+    
+    # Initialize statistics
+    total_docs = len(collection.documents)
+    has_date_field = 0
+    has_timestamp_field = 0
+    valid_timestamps = 0
+    timestamp_min = float('inf')
+    timestamp_max = float('-inf')
+    age_distribution = {
+        "last_day": 0,
+        "last_week": 0,
+        "last_month": 0,
+        "last_year": 0,
+        "older": 0,
+        "unknown": 0
+    }
+    
+    # Get current time
+    now = time.time()
+    
+    # Analyze each document
+    for metadata in collection.metadatas:
+        if metadata and "date" in metadata:
+            has_date_field += 1
+            
+        if metadata and "timestamp" in metadata:
+            has_timestamp_field += 1
+            timestamp = metadata["timestamp"]
+            
+            # Check if timestamp is valid (number)
+            if isinstance(timestamp, (int, float)) and timestamp > 0:
+                valid_timestamps += 1
+                
+                # Update min/max
+                timestamp_min = min(timestamp_min, timestamp)
+                timestamp_max = max(timestamp_max, timestamp)
+                
+                # Determine age
+                age_seconds = now - timestamp
+                if age_seconds <= 86400:  # 1 day
+                    age_distribution["last_day"] += 1
+                elif age_seconds <= 604800:  # 1 week
+                    age_distribution["last_week"] += 1
+                elif age_seconds <= 2592000:  # 30 days
+                    age_distribution["last_month"] += 1
+                elif age_seconds <= 31536000:  # 365 days
+                    age_distribution["last_year"] += 1
+                else:
+                    age_distribution["older"] += 1
+            
+    # For documents without timestamps
+    age_distribution["unknown"] = total_docs - valid_timestamps
+    
+    # Format min/max timestamps as ISO format if valid
+    min_date = datetime.fromtimestamp(timestamp_min).isoformat() if timestamp_min != float('inf') else None
+    max_date = datetime.fromtimestamp(timestamp_max).isoformat() if timestamp_max != float('-inf') else None
+    
+    # Create source type distribution if "source_type" exists in metadata
+    source_type_distribution = {}
+    source_type_with_timestamp = {}
+    
+    for metadata in collection.metadatas:
+        if metadata and "source_type" in metadata:
+            source_type = metadata["source_type"]
+            source_type_distribution[source_type] = source_type_distribution.get(source_type, 0) + 1
+            
+            if "timestamp" in metadata:
+                source_type_with_timestamp[source_type] = source_type_with_timestamp.get(source_type, 0) + 1
+    
+    # Calculate percentages
+    percent_with_date = (has_date_field / total_docs) * 100 if total_docs > 0 else 0
+    percent_with_timestamp = (has_timestamp_field / total_docs) * 100 if total_docs > 0 else 0
+    percent_valid_timestamps = (valid_timestamps / has_timestamp_field) * 100 if has_timestamp_field > 0 else 0
+    
+    # Calculate age distribution percentages
+    age_distribution_percent = {}
+    for key, value in age_distribution.items():
+        age_distribution_percent[key] = (value / total_docs) * 100 if total_docs > 0 else 0
+    
+    return {
+        "total_docs": total_docs,
+        "has_date_field": has_date_field,
+        "has_timestamp_field": has_timestamp_field,
+        "valid_timestamps": valid_timestamps,
+        "percent_with_date": round(percent_with_date, 2),
+        "percent_with_timestamp": round(percent_with_timestamp, 2),
+        "percent_valid_timestamps": round(percent_valid_timestamps, 2),
+        "timestamp_min": min_date,
+        "timestamp_max": max_date,
+        "age_distribution": {
+            "counts": age_distribution,
+            "percentages": {k: round(v, 2) for k, v in age_distribution_percent.items()}
+        },
+        "source_type_distribution": source_type_distribution,
+        "source_type_with_timestamp": source_type_with_timestamp
+    }
+
+# Add an endpoint to update document metadata
+@app.post("/api/v1/collections/{name}/update")
+async def update_collection_documents(name: str, request: dict):
+    """Update metadata for documents in the collection."""
+    if name not in collections:
+        # Try to load it from disk
+        collection_dir = os.path.join(COLLECTIONS_DIR, name)
+        if os.path.exists(collection_dir):
+            collections[name] = Collection(name)
+            collections[name].load()
+        else:
+            raise HTTPException(status_code=404, detail="Collection not found")
+    
+    collection = collections[name]
+    updates = request.get("updates", [])
+    
+    if not updates:
+        return {
+            "success": False,
+            "message": "No updates provided"
+        }
+    
+    updates_applied = 0
+    updates_by_id = {}
+    
+    # Prepare updates by document ID
+    for update in updates:
+        doc_id = update.get("id")
+        if not doc_id:
+            continue
+            
+        updates_by_id[doc_id] = update.get("metadata", {})
+    
+    # Apply updates in a single pass
+    for idx, doc_id in enumerate(collection.ids):
+        if doc_id in updates_by_id:
+            try:
+                # Get the current metadata
+                existing_metadata = collection.metadatas[idx]
+                if existing_metadata is None:
+                    existing_metadata = {}
+                    
+                # Merge with the new metadata
+                new_metadata = updates_by_id[doc_id]
+                existing_metadata.update(new_metadata)
+                
+                # Update the collection
+                collection.metadatas[idx] = existing_metadata
+                updates_applied += 1
+                
+            except Exception as e:
+                logger.error(f"Error updating document {doc_id}: {e}")
+    
+    # Save the updated collection
+    if updates_applied > 0:
+        collection.save()
+    
+    return {
+        "success": True,
+        "updated_count": updates_applied,
+        "message": f"Successfully applied {updates_applied} updates"
+    }
+
+@app.post("/api/v1/collections/{name}/count")
+async def count_collection(name: str, request: dict = Body({})):
+    """
+    Return the total count of documents in the collection.
+    """
+    if name not in collections:
+        # Try to load it from disk
+        collection_dir = os.path.join(COLLECTIONS_DIR, name)
+        if os.path.exists(collection_dir):
+            collections[name] = Collection(name)
+            collections[name].load()
+        else:
+            raise HTTPException(status_code=404, detail="Collection not found")
+            
+    collection = collections[name]
+    
+    # Apply filters if specified
+    filter_field_exists = None
+    filter_field_missing = None
+    
+    if "filter" in request and isinstance(request["filter"], dict):
+        filter_field_exists = request["filter"].get("field_exists", {})
+        filter_field_missing = request["filter"].get("field_missing", {})
+    
+    # Count all matching documents
+    count = 0
+    
+    if not filter_field_exists and not filter_field_missing:
+        # No filters, just return total count
+        count = len(collection.documents)
+    else:
+        # Apply filters
+        for idx, metadata in enumerate(collection.metadatas):
+            # Check if required fields exist
+            has_required_fields = True
+            if filter_field_exists:
+                for field, value in filter_field_exists.items():
+                    if value and (field not in metadata or metadata[field] is None):
+                        has_required_fields = False
+                        break
+            
+            # Check if fields should be missing
+            has_missing_fields = True
+            if filter_field_missing:
+                for field, value in filter_field_missing.items():
+                    if value and field in metadata and metadata[field] is not None:
+                        has_missing_fields = False
+                        break
+            
+            if has_required_fields and has_missing_fields:
+                count += 1
+    
+    return {"count": count}
 
 if __name__ == "__main__":
     import uvicorn

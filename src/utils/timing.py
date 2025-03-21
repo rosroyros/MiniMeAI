@@ -1,9 +1,10 @@
 import time
-import functools
 import logging
+import functools
+from typing import Any, Callable, TypeVar
 
-# Configure logger
-logger = logging.getLogger("minimeai.timing")
+# Type variable for decorator
+F = TypeVar('F', bound=Callable[..., Any])
 
 class Timer:
     """Utility class for timing code execution."""
@@ -20,15 +21,15 @@ class Timer:
     def __exit__(self, *args):
         """Log elapsed time when exiting context."""
         elapsed_time = time.time() - self.start_time
-        logger.info(f"{self.name} took {elapsed_time:.4f} seconds")
+        logging.info(f"{self.name} took {elapsed_time:.4f} seconds")
 
-def timed(func):
+def timed(func: F) -> F:
     """Decorator to time function execution."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         start_time = time.time()
         result = func(*args, **kwargs)
         elapsed_time = time.time() - start_time
-        logger.info(f"{func.__name__} took {elapsed_time:.4f} seconds")
+        logging.info(f"{func.__name__} took {elapsed_time:.4f} seconds")
         return result
     return wrapper 

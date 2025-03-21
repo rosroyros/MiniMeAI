@@ -11,36 +11,12 @@ from typing import List, Dict, Any, Optional
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-# Simple internal timing implementation to avoid import errors
-import functools
-
-class Timer:
-    """Utility class for timing code execution."""
-    
-    def __init__(self, name="Operation"):
-        """Initialize timer with operation name."""
-        self.name = name
-        
-    def __enter__(self):
-        """Start timer when entering context."""
-        self.start_time = time.time()
-        return self
-        
-    def __exit__(self, *args):
-        """Log elapsed time when exiting context."""
-        elapsed_time = time.time() - self.start_time
-        logging.info(f"{self.name} took {elapsed_time:.4f} seconds")
-
-def timed(func):
-    """Decorator to time function execution."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        result = func(*args, **kwargs)
-        elapsed_time = time.time() - start_time
-        logging.info(f"{func.__name__} took {elapsed_time:.4f} seconds")
-        return result
-    return wrapper
+# Import BaseFetcher
+import sys
+# Add the parent directory to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from utils.base_fetcher import BaseFetcher
+from utils.timing import Timer, timed
 
 # Configure logging
 logging.basicConfig(
@@ -71,7 +47,11 @@ CORS(app)
 # Global cache for emails
 email_cache = {}
 
-class EmailFetcher:
+class EmailFetcher(BaseFetcher):
+    def __init__(self):
+        """Initialize EmailFetcher with 'email' source type."""
+        super().__init__(source_type="email", logger=logger)
+        
     def connect_to_imap(self):
         """Connect to IMAP server."""
         try:
@@ -83,7 +63,7 @@ class EmailFetcher:
             
             return mail
         except Exception as e:
-            logger.error(f"Error connecting to IMAP server: {e}")
+            self.logger.error(f"Error connecting to IMAP server: {e}")
             return None
 
     @timed
@@ -93,7 +73,7 @@ class EmailFetcher:
             # Connect to IMAP
             mail = self.connect_to_imap()
             if not mail:
-                logger.error("Failed to connect to IMAP server")
+                self.logger.error("Failed to connect to IMAP server")
                 return []
             
             # Select the mailbox (INBOX)
@@ -103,20 +83,20 @@ class EmailFetcher:
             sync_date = (datetime.now() - timedelta(days=2)).strftime("%d-%b-%Y")
             search_criteria = f'(SINCE "{sync_date}")'
             
-            logger.info(f"Searching for emails since {sync_date}")
+            self.logger.info(f"Searching for emails since {sync_date}")
             
             # Search for emails
-            logger.info(f"Searching with criteria: {search_criteria}")
+            self.logger.info(f"Searching with criteria: {search_criteria}")
             status, messages = mail.search(None, search_criteria)
             if status != "OK":
-                logger.error(f"Failed to search emails: {status}")
+                self.logger.error(f"Failed to search emails: {status}")
                 return []
             # Get email IDs
             email_ids = messages[0].split()
             if not email_ids:
-                logger.info("No emails found matching criteria")
+                self.logger.info("No emails found matching criteria")
                 return []
-            logger.info(f"Found {len(email_ids)} emails matching search criteria")
+            self.logger.info(f"Found {len(email_ids)} emails matching search criteria")
             
             # Fetch basic info for all emails to sort by date
             date_dict = {}
@@ -136,10 +116,10 @@ class EmailFetcher:
                             else:
                                 date_dict[email_id] = datetime.min
                         except Exception as e:
-                            logger.error(f"Error parsing date {date_str}: {e}")
+                            self.logger.error(f"Error parsing date {date_str}: {e}")
                             date_dict[email_id] = datetime.min
                 except Exception as e:
-                    logger.error(f"Error fetching date for email {email_id}: {e}")
+                    self.logger.error(f"Error fetching date for email {email_id}: {e}")
                     date_dict[email_id] = datetime.min
 
             # Sort emails by date (newest first)
@@ -148,7 +128,7 @@ class EmailFetcher:
             # Limit to the specified number of emails
             email_ids = sorted_ids[:limit]
             
-            logger.info(f"Processing {len(email_ids)} emails, newest first")
+            self.logger.info(f"Processing {len(email_ids)} emails, newest first")
             
             # Fetch each email
             emails = []
@@ -165,18 +145,18 @@ class EmailFetcher:
                     # Check if the message is unread before fetching
                     status, flags_data = mail.fetch(email_id, '(FLAGS)')
                     if status != "OK":
-                        logger.error(f"Failed to fetch flags for email {msg_id}")
+                        self.logger.error(f"Failed to fetch flags for email {msg_id}")
                         continue
                     
                     # Parse the flags
                     flags_str = flags_data[0].decode("utf-8")
                     is_unread = "\\Seen" not in flags_str
-                    logger.debug(f"Email {msg_id} unread status before fetch: {is_unread}")
+                    self.logger.debug(f"Email {msg_id} unread status before fetch: {is_unread}")
                     
                     # Fetch the email - using BODY.PEEK to not set the \Seen flag
                     status, data = mail.fetch(email_id, "(BODY.PEEK[] ENVELOPE)")
                     if status != "OK":
-                        logger.error(f"Failed to fetch email {msg_id}")
+                        self.logger.error(f"Failed to fetch email {msg_id}")
                         continue
                     
                     # Parse the email
@@ -211,7 +191,7 @@ class EmailFetcher:
                                     elif content_type == "text/html":
                                         content["html"] = body.decode("utf-8", errors="replace")
                             except Exception as e:
-                                logger.error(f"Error decoding email part: {e}")
+                                self.logger.error(f"Error decoding email part: {e}")
                     else:
                         # Get the content type
                         content_type = msg.get_content_type()
@@ -225,7 +205,7 @@ class EmailFetcher:
                                 elif content_type == "text/html":
                                     content["html"] = body.decode("utf-8", errors="replace")
                         except Exception as e:
-                            logger.error(f"Error decoding email body: {e}")
+                            self.logger.error(f"Error decoding email body: {e}")
                     
                     # Check unread status after fetch if not using readonly mode
                     if not PRESERVE_READ_STATUS:
@@ -233,12 +213,12 @@ class EmailFetcher:
                         if status == "OK":
                             flags_str = flags_data[0].decode("utf-8")
                             is_still_unread = "\\Seen" not in flags_str
-                            logger.debug(f"Email {msg_id} unread status after fetch: {is_still_unread}")
+                            self.logger.debug(f"Email {msg_id} unread status after fetch: {is_still_unread}")
                             
                             # Restore unread flag if it changed
                             if is_unread and not is_still_unread:
                                 mail.store(email_id, '-FLAGS', '\\Seen')
-                                logger.info(f"Restored unread status for email {msg_id}")
+                                self.logger.info(f"Restored unread status for email {msg_id}")
                     
                     # Save the original date string and timestamp for sorting
                     date_str = headers["date"]
@@ -255,19 +235,21 @@ class EmailFetcher:
                         "to": headers["to"],
                         "subject": headers["subject"],
                         "date": date_str,
-                        "timestamp": timestamp,  # Store timestamp for better sorting
                         "text": content["text"],
                         "html": content["html"]
                     }
+                    
+                    # Use base class to enrich with metadata (adds source_type and timestamp)
+                    email_obj = self.enrich_metadata(email_obj)
                     
                     # Add to cache
                     email_cache[msg_id] = email_obj
                     emails.append(email_obj)
                     
-                    logger.info(f"Processed email: {headers['subject']} from {headers['from']} on {date_str}")
+                    self.logger.info(f"Processed email: {headers['subject']} from {headers['from']} on {date_str}")
                     
                 except Exception as e:
-                    logger.error(f"Error processing email {email_id}: {e}")
+                    self.logger.error(f"Error processing email {email_id}: {e}")
             
             # Close the connection
             mail.close()
@@ -278,7 +260,7 @@ class EmailFetcher:
             
             return emails
         except Exception as e:
-            logger.error(f"Error fetching emails: {e}")
+            self.logger.error(f"Error fetching emails: {e}")
             if 'mail' in locals() and mail:
                 try:
                     mail.close()
@@ -295,11 +277,11 @@ class EmailFetcher:
             if os.path.exists(EMAIL_CACHE_FILE):
                 with open(EMAIL_CACHE_FILE, "r") as f:
                     email_cache = json.load(f)
-                logger.info(f"Loaded {len(email_cache)} emails from cache")
+                self.logger.info(f"Loaded {len(email_cache)} emails from cache")
             else:
-                logger.info(f"No email cache file found at {EMAIL_CACHE_FILE}")
+                self.logger.info(f"No email cache file found at {EMAIL_CACHE_FILE}")
         except Exception as e:
-            logger.error(f"Error loading email cache: {e}")
+            self.logger.error(f"Error loading email cache: {e}")
             email_cache = {}
 
     def save_email_cache(self):
@@ -308,23 +290,28 @@ class EmailFetcher:
             os.makedirs(os.path.dirname(EMAIL_CACHE_FILE), exist_ok=True)
             with open(EMAIL_CACHE_FILE, "w") as f:
                 json.dump(email_cache, f)
-            logger.info(f"Saved {len(email_cache)} emails to cache")
+            self.logger.info(f"Saved {len(email_cache)} emails to cache")
         except Exception as e:
-            logger.error(f"Error saving email cache: {e}")
+            self.logger.error(f"Error saving email cache: {e}")
 
     def update_email_cache(self):
         """Periodically update email cache."""
         while True:
             try:
-                logger.info("Updating email cache")
+                self.logger.info("Updating email cache")
                 self.fetch_emails()
-                logger.info(f"Email cache updated, {len(email_cache)} emails in cache")
+                self.logger.info(f"Email cache updated, {len(email_cache)} emails in cache")
             except Exception as e:
-                logger.error(f"Error updating email cache: {e}")
+                self.logger.error(f"Error updating email cache: {e}")
             
             # Sleep until next update
-            logger.info(f"Sleeping for {EMAIL_FETCH_INTERVAL} seconds")
+            self.logger.info(f"Sleeping for {EMAIL_FETCH_INTERVAL} seconds")
             time.sleep(EMAIL_FETCH_INTERVAL)
+
+    # Implement the abstract method from BaseFetcher
+    def fetch_data(self, limit: int = EMAIL_FETCH_COUNT) -> List[Dict[str, Any]]:
+        """Implement the abstract method from BaseFetcher."""
+        return self.fetch_emails(limit=limit)
 
 # Move Flask route outside of the class
 @app.route("/api/emails", methods=["GET"])
