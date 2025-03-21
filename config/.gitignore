@@ -1,0 +1,8 @@
+# Exclude sensitive files
+gmail_credentials.json
+email_cache.json
+Downloads/
+secrets/
+
+# Include a README to ensure the directory is tracked
+!README.md 
