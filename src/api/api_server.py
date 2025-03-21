@@ -8,11 +8,15 @@ from flask_cors import CORS
 import openai
 import anthropic
 from typing import List, Dict, Any, Optional, Tuple
+from datetime import datetime
 
 # Direct import - no module path
 from chroma_client import SimpleChromaClient
 from timing import Timer, timed
 from logging_config import setup_logging
+
+# Import date utilities
+from src.utils.date_utils import parse_timestamp, get_safe_timestamp, format_timestamp
 
 # Initialize logging
 logger = setup_logging()
@@ -109,41 +113,8 @@ def detect_language(text: str) -> str:
 
 def get_reliable_timestamp(date_str: str) -> int:
     """Convert various date formats to a reliable timestamp."""
-    if not date_str:
-        return 0
-    
-    # Try parsing with email.utils first (most reliable for email dates)
-    try:
-        import email.utils
-        date_tuple = email.utils.parsedate_tz(date_str)
-        if date_tuple:
-            return int(email.utils.mktime_tz(date_tuple))
-    except Exception:
-        pass
-    
-    # Try common date formats
-    formats = [
-        "%a, %d %b %Y %H:%M:%S %z",  # RFC 2822 format
-        "%Y-%m-%dT%H:%M:%S%z",       # ISO 8601
-        "%Y-%m-%d %H:%M:%S",         # SQL-like
-        "%d/%m/%Y %H:%M:%S",         # Common format
-        "%d/%m/%Y %H:%M",            # Common format without seconds
-        "%d.%m.%Y %H:%M:%S",         # European format
-        "%d.%m.%Y %H:%M",            # European format without seconds
-    ]
-    
-    from datetime import datetime
-    for fmt in formats:
-        try:
-            dt = datetime.strptime(date_str, fmt)
-            return int(dt.timestamp())
-        except ValueError:
-            continue
-    
-    # If all else fails, return current time - very old (to put it at the bottom)
-    logger.warning(f"Could not parse date: {date_str}")
-    from datetime import datetime
-    return int(datetime.now().timestamp()) - 31536000  # One year ago
+    # Use our new unified date_utils module
+    return get_safe_timestamp(date_str, default_strategy="past")
 
 
 def is_recency_query(query: str, language: str = "en") -> bool:
@@ -652,6 +623,51 @@ def query_endpoint():
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         logger.error(traceback.format_exc())
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+
+# Update the metadata endpoint to use our new timestamp utils
+@app.route("/api/update_metadata", methods=["POST"])
+def update_metadata():
+    """Update metadata for documents."""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        collection = data.get("collection", "default")
+        ids = data.get("ids", [])
+        updates = data.get("updates", {})
+        
+        if not ids:
+            return jsonify({"error": "No document IDs provided"}), 400
+        if not updates:
+            return jsonify({"error": "No updates provided"}), 400
+            
+        # Normalize timestamp if provided
+        if "timestamp" in updates:
+            # Use our new date_utils module
+            timestamp = parse_timestamp(updates["timestamp"])
+            if timestamp:
+                updates["timestamp"] = timestamp
+        
+        # Call the database update method
+        try:
+            with Timer() as timer:
+                result = db.update_metadata(collection_name=collection, ids=ids, metadata=updates)
+            
+            success_count = len(ids)
+            logger.info(f"Updated metadata for {success_count} documents in {timer.elapsed:.2f}s")
+            return jsonify({
+                "status": "success", 
+                "updated_count": success_count,
+                "time_taken": timer.elapsed
+            })
+        except Exception as e:
+            logger.error(f"Error updating metadata: {e}")
+            return jsonify({"error": f"Error updating metadata: {str(e)}"}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in update_metadata: {e}")
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 

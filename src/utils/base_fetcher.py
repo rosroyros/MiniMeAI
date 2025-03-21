@@ -1,7 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Base fetcher class that all data source fetchers should inherit from.
+"""
 import logging
 import time
 from typing import List, Dict, Any, Optional
 from abc import ABC, abstractmethod
+from datetime import datetime
+
+# Import the new date utilities
+from src.utils.date_utils import parse_timestamp, get_safe_timestamp
+
+logger = logging.getLogger(__name__)
 
 class BaseFetcher(ABC):
     """Base class for all data fetchers that ensures consistent source type handling.
@@ -12,37 +23,40 @@ class BaseFetcher(ABC):
     All specialized fetchers (email, whatsapp, web, etc.) should inherit from this base class.
     """
     
-    def __init__(self, source_type: str, logger: Optional[logging.Logger] = None):
-        """Initialize the base fetcher with a specific source type.
+    def __init__(self, config: Dict[str, Any] = None):
+        """Initialize the fetcher with configuration.
         
         Args:
-            source_type: A string identifier for the source type (e.g., "email", "whatsapp")
-            logger: Optional logger instance. If not provided, a new logger will be created.
+            config: Configuration dictionary for the fetcher
         """
-        self.source_type = source_type
-        self.logger = logger or logging.getLogger(f"{source_type}_fetcher")
+        self.config = config or {}
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
     
-    def enrich_metadata(self, item: Dict[str, Any]) -> Dict[str, Any]:
-        """Ensure all items have proper metadata including source type.
+    def enrich_item(self, item: Dict[str, Any], source_type: str) -> Dict[str, Any]:
+        """Add common metadata to an item.
         
-        This method adds or updates the source_type field in the item metadata
-        and ensures other common fields are present.
+        This ensures all items have consistent metadata regardless of source.
         
         Args:
-            item: The item dictionary to enrich with metadata
+            item: The item to enrich
+            source_type: The type of data source (e.g., 'email', 'document')
             
         Returns:
-            The enriched item with guaranteed source_type field
+            The enriched item
         """
-        # Always set the source type
-        item["source_type"] = self.source_type
-        
-        # Ensure timestamp exists if possible
-        if "timestamp" not in item and "date" in item:
-            item["timestamp"] = self.get_timestamp_from_date(item["date"])
-        elif "timestamp" not in item:
-            # Use current time as fallback
-            item["timestamp"] = int(time.time())
+        # Set source type if not already set
+        if "source_type" not in item:
+            item["source_type"] = source_type
+            
+        # Ensure timestamp is present
+        if "timestamp" not in item or not item["timestamp"]:
+            # Try to extract from date field
+            if "date" in item:
+                # Use our new date utilities
+                item["timestamp"] = get_safe_timestamp(item["date"], default_strategy="now")
+            else:
+                # Use current time as fallback
+                item["timestamp"] = int(time.time())
             
         return item
     
@@ -58,40 +72,8 @@ class BaseFetcher(ABC):
         Returns:
             Unix timestamp as integer, or None if parsing fails
         """
-        if not date_str:
-            return None
-            
-        # Common date formats to try
-        formats = [
-            "%a, %d %b %Y %H:%M:%S %z",  # RFC 2822 format
-            "%Y-%m-%dT%H:%M:%S%z",       # ISO 8601
-            "%Y-%m-%d %H:%M:%S",         # SQL-like
-            "%d/%m/%Y %H:%M:%S",         # Common format
-            "%d/%m/%Y %H:%M",            # Common format without seconds
-            "%d.%m.%Y %H:%M:%S",         # European format
-            "%d.%m.%Y %H:%M",            # European format without seconds
-        ]
-        
-        # Try standard formats
-        from datetime import datetime
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(date_str, fmt)
-                return int(dt.timestamp())
-            except ValueError:
-                continue
-                
-        # Try email-specific format
-        try:
-            import email.utils
-            date_tuple = email.utils.parsedate_tz(date_str)
-            if date_tuple:
-                return int(email.utils.mktime_tz(date_tuple))
-        except Exception:
-            pass
-            
-        self.logger.warning(f"Could not parse date: {date_str}")
-        return None
+        # Use our new date utilities module
+        return parse_timestamp(date_str)
     
     @abstractmethod
     def fetch_data(self, limit: int = 100) -> List[Dict[str, Any]]:

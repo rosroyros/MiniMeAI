@@ -49,6 +49,14 @@ The project is structured as follows:
 - `Dockerfile.*` - Docker configuration for each service
 - `requirements.*.txt` - Python dependencies for each service
 
+## Project Updates
+
+For details on recent major updates to the project, see [Project Updates](docs/project_updates.md).
+
+Recent major updates:
+- **2025-03-21**: [Timestamp Normalization Project](docs/project_updates.md#timestamp-normalization-project---2025-03-21) - Fixed timestamp handling and standardized source type attribution.
+- **2025-03-21**: [Timestamp Standardization](docs/project_updates.md#additional-improvements-2025-03-21) - Created unified timestamp handling module and standardized across all components.
+
 ## License
 
 [Your chosen license] 

@@ -5,16 +5,20 @@ import json
 import traceback
 import uuid
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 import pickle
 import requests
 import numpy as np
 import openai
+import schedule
 
 # Direct import - no module path
 from chroma_client import SimpleChromaClient
 from timing import Timer, timed
+
+# Import our new date utilities
+from src.utils.date_utils import parse_timestamp, get_safe_timestamp, format_timestamp
 
 # Configure logging
 logging.basicConfig(
@@ -463,38 +467,7 @@ def extract_content_and_metadata(item: Dict[str, Any]) -> Tuple[str, Dict[str, A
 
 def get_timestamp_from_date(date_str: str) -> Optional[int]:
     """Convert various date formats to a timestamp."""
-    if not date_str:
-        return None
-    
-    # Try common date formats
-    formats = [
-        "%a, %d %b %Y %H:%M:%S %z",  # RFC 2822 format
-        "%Y-%m-%dT%H:%M:%S%z",       # ISO 8601
-        "%Y-%m-%d %H:%M:%S",         # SQL-like
-        "%d/%m/%Y %H:%M:%S",         # Common format
-        "%d/%m/%Y %H:%M",            # Common format without seconds
-        "%d.%m.%Y %H:%M:%S",         # European format
-        "%d.%m.%Y %H:%M",            # European format without seconds
-    ]
-    
-    for fmt in formats:
-        try:
-            dt = datetime.strptime(date_str, fmt)
-            return int(dt.timestamp())
-        except ValueError:
-            continue
-    
-    # Try to extract from RFC 2822 format with email.utils
-    try:
-        import email.utils
-        date_tuple = email.utils.parsedate_tz(date_str)
-        if date_tuple:
-            return int(email.utils.mktime_tz(date_tuple))
-    except:
-        pass
-    
-    logger.warning(f"Could not parse date: {date_str}")
-    return None
+    return parse_timestamp(date_str)
 
 
 def fetch_new_items() -> List[Dict[str, Any]]:

@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+IMAP email fetcher for retrieving emails from various providers.
+"""
 import os
 import time
 import imaplib
@@ -5,9 +10,11 @@ import email
 import email.utils
 import logging
 import json
+import re
+import ssl
 from datetime import datetime, timedelta
 from email.header import decode_header
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set, Tuple, Union
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -17,6 +24,8 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils.base_fetcher import BaseFetcher
 from utils.timing import Timer, timed
+# Import the new date utilities
+from utils.date_utils import parse_timestamp, get_safe_timestamp, format_timestamp
 
 # Configure logging
 logging.basicConfig(
@@ -48,18 +57,39 @@ CORS(app)
 email_cache = {}
 
 class EmailFetcher(BaseFetcher):
-    def __init__(self):
-        """Initialize EmailFetcher with 'email' source type."""
-        super().__init__(source_type="email", logger=logger)
+    """Fetcher for retrieving emails from IMAP servers."""
+    
+    def __init__(self, config: Dict[str, Any] = None):
+        """Initialize the email fetcher.
+        
+        Args:
+            config: Configuration for the email fetcher
+        """
+        super().__init__(config)
+        
+        # Load configuration
+        self.config = config or {}
+        self.email_server = self.config.get("imap_server", "imap.gmail.com")
+        self.email_port = self.config.get("imap_port", 993)
+        self.email_user = self.config.get("email_user", os.environ.get("EMAIL_USER", ""))
+        self.email_password = self.config.get("email_password", os.environ.get("EMAIL_PASSWORD", ""))
+        self.email_folder = self.config.get("email_folder", "INBOX")
+        self.cache_path = self.config.get("cache_path", "config/email_cache.json")
+        self.max_emails = self.config.get("max_emails", 100)
+        self.max_days = self.config.get("max_days", 30)
+        self.logger = logging.getLogger("email_fetcher")
+        
+        # Initialize cache
+        self.initialize_cache()
         
     def connect_to_imap(self):
         """Connect to IMAP server."""
         try:
             # Connect to the IMAP server
-            mail = imaplib.IMAP4_SSL(EMAIL_IMAP_SERVER, EMAIL_IMAP_PORT)
+            mail = imaplib.IMAP4_SSL(self.email_server, self.email_port)
             
             # Login
-            mail.login(EMAIL_USERNAME, EMAIL_PASSWORD)
+            mail.login(self.email_user, self.email_password)
             
             return mail
         except Exception as e:
@@ -80,7 +110,7 @@ class EmailFetcher(BaseFetcher):
             mail.select("INBOX", readonly=PRESERVE_READ_STATUS)  # Set readonly=True to preserve flags
             
             # Calculate date filter for sync period
-            sync_date = (datetime.now() - timedelta(days=2)).strftime("%d-%b-%Y")
+            sync_date = (datetime.now() - timedelta(days=EMAIL_SYNC_DAYS)).strftime("%d-%b-%Y")
             search_criteria = f'(SINCE "{sync_date}")'
             
             self.logger.info(f"Searching for emails since {sync_date}")
@@ -137,11 +167,6 @@ class EmailFetcher(BaseFetcher):
                     # Convert ID to string
                     msg_id = email_id.decode("utf-8")
                     
-                    # Check if email is already in cache
-                    if msg_id in email_cache:
-                        emails.append(email_cache[msg_id])
-                        continue
-                    
                     # Check if the message is unread before fetching
                     status, flags_data = mail.fetch(email_id, '(FLAGS)')
                     if status != "OK":
@@ -162,6 +187,32 @@ class EmailFetcher(BaseFetcher):
                     # Parse the email
                     raw_email = data[0][1]
                     msg = email.message_from_bytes(raw_email)
+                    
+                    # Extract message ID from headers for better deduplication
+                    message_id = msg.get("Message-ID", msg_id)
+                    
+                    # Check if email is already in cache by Message-ID
+                    duplicate_found = False
+                    if message_id in email_cache:
+                        emails.append(email_cache[message_id])
+                        duplicate_found = True
+                        continue
+                      
+                    # Also check for duplicates by comparing subjects and dates
+                    if not duplicate_found:
+                        subject = str(decode_header(msg.get("Subject", ""))[0][0])
+                        date_str = msg.get("Date", "")
+                        
+                        # Look for matching subject+date in cache
+                        for cached_id, cached_email in email_cache.items():
+                            if (cached_email.get("subject") == subject and 
+                                cached_email.get("date") == date_str):
+                                emails.append(cached_email)
+                                duplicate_found = True
+                                break
+                    
+                    if duplicate_found:
+                        continue
                     
                     # Extract headers
                     headers = {}
@@ -228,6 +279,7 @@ class EmailFetcher(BaseFetcher):
                     # Create email object
                     email_obj = {
                         "id": msg_id,
+                        "message_id": message_id,
                         "thread_id": msg_id,  # Using msg_id as thread_id since IMAP doesn't have this concept
                         "label_ids": ["INBOX", "UNREAD"] if is_unread else ["INBOX"],
                         "snippet": content["text"][:100] if content["text"] else "",
@@ -242,8 +294,9 @@ class EmailFetcher(BaseFetcher):
                     # Use base class to enrich with metadata (adds source_type and timestamp)
                     email_obj = self.enrich_metadata(email_obj)
                     
-                    # Add to cache
-                    email_cache[msg_id] = email_obj
+                    # Add to cache - use Message-ID when available for better deduplication
+                    cache_key = message_id if message_id != msg_id else msg_id
+                    email_cache[cache_key] = email_obj
                     emails.append(email_obj)
                     
                     self.logger.info(f"Processed email: {headers['subject']} from {headers['from']} on {date_str}")
@@ -274,12 +327,12 @@ class EmailFetcher(BaseFetcher):
         global email_cache
         
         try:
-            if os.path.exists(EMAIL_CACHE_FILE):
-                with open(EMAIL_CACHE_FILE, "r") as f:
+            if os.path.exists(self.cache_path):
+                with open(self.cache_path, "r") as f:
                     email_cache = json.load(f)
                 self.logger.info(f"Loaded {len(email_cache)} emails from cache")
             else:
-                self.logger.info(f"No email cache file found at {EMAIL_CACHE_FILE}")
+                self.logger.info(f"No email cache file found at {self.cache_path}")
         except Exception as e:
             self.logger.error(f"Error loading email cache: {e}")
             email_cache = {}
@@ -287,8 +340,8 @@ class EmailFetcher(BaseFetcher):
     def save_email_cache(self):
         """Save email cache to disk."""
         try:
-            os.makedirs(os.path.dirname(EMAIL_CACHE_FILE), exist_ok=True)
-            with open(EMAIL_CACHE_FILE, "w") as f:
+            os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
+            with open(self.cache_path, "w") as f:
                 json.dump(email_cache, f)
             self.logger.info(f"Saved {len(email_cache)} emails to cache")
         except Exception as e:
@@ -299,8 +352,11 @@ class EmailFetcher(BaseFetcher):
         while True:
             try:
                 self.logger.info("Updating email cache")
+                initial_count = len(email_cache)
                 self.fetch_emails()
-                self.logger.info(f"Email cache updated, {len(email_cache)} emails in cache")
+                final_count = len(email_cache)
+                new_emails = final_count - initial_count
+                self.logger.info(f"Email cache updated, {len(email_cache)} emails in cache (added {new_emails} new emails)")
             except Exception as e:
                 self.logger.error(f"Error updating email cache: {e}")
             
@@ -324,10 +380,8 @@ def get_emails():
         # Sort by timestamp (newest first) or fallback to date string
         emails.sort(key=lambda x: x.get("timestamp", 0) or 0, reverse=True)
         
-        # Remove internal timestamp field if it exists
-        for email in emails:
-            if "timestamp" in email:
-                del email["timestamp"]
+        # No longer removing timestamp field to ensure proper processing
+        # We need this field for proper sorting and processing by the processor service
         
         return jsonify({"emails": emails[:limit]})
     except Exception as e:
