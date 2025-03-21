@@ -1,0 +1,48 @@
+{
+  "status": "analyzed",
+  "count": 10832,
+  "embedding_stats": {
+    "dimensions": 1536,
+    "avg_norm": 1.0000000113198582,
+    "min_norm": 0.9999999226611814,
+    "max_norm": 1.0000001067629354,
+    "sparsity": 0.0,
+    "avg_random_similarity": 0.1458998052986011
+  },
+  "document_stats": {
+    "avg_length": 422.5733013293944,
+    "min_length": 0,
+    "max_length": 7944
+  },
+  "metadata": {
+    "available_keys": [
+      "subject",
+      "chunk_id",
+      "timestamp",
+      "has_hebrew",
+      "date",
+      "from",
+      "id",
+      "to",
+      "email_id",
+      "source_type"
+    ],
+    "has_timestamps": true,
+    "key_types": {
+      "id": "str",
+      "source_type": "str",
+      "subject": "str",
+      "from": "str",
+      "to": "str",
+      "date": "str",
+      "timestamp": "int",
+      "has_hebrew": "bool",
+      "chunk_id": "int",
+      "email_id": "str"
+    }
+  },
+  "performance": {
+    "per_calc_time": 0.0007895851135253907,
+    "estimated_full_scan": 8.552785949707031
+  }
+}

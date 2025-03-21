@@ -1,0 +1,101 @@
+version: '3'
+services:
+  # Email handling container
+  email_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.email
+    image: minimeai-email
+    container_name: minimeai-email
+    restart: unless-stopped
+    volumes:
+      - ./src/email:/app/src
+      - ./config:/app/config
+      - /media/roy/Seagate/MiniMeAI/data/emails:/app/data
+      - ./logs:/app/logs
+    env_file: .env
+    networks:
+      - minimeai_network
+
+  # Vector database (ChromaDB)
+  vector_db:
+    build:
+      context: .
+      dockerfile: Dockerfile.vectordb
+    container_name: minimeai-vectordb
+    restart: unless-stopped
+    volumes:
+      - /media/roy/Seagate/MiniMeAI/data/vectors:/chroma/chroma
+    ports:
+      - "8000:8000"
+    networks:
+      - minimeai_network
+
+  # Text processing and embedding
+  processor:
+    build:
+      context: .
+      dockerfile: Dockerfile.processor
+    image: minimeai-processor
+    container_name: minimeai-processor
+    restart: unless-stopped
+    volumes:
+      - ./src/processing:/app/src
+      - ./src/embedding:/app/embedding
+      - /media/roy/Seagate/MiniMeAI/data:/app/data
+      - ./config:/app/config
+      - ./logs:/app/logs
+    env_file: .env
+    depends_on:
+      - vector_db
+    networks:
+      - minimeai_network
+
+  # API communication and query handling
+  api_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: minimeai-api
+    container_name: minimeai-api
+    restart: unless-stopped
+    volumes:
+      - ./src/api:/app/src
+      - ./src/query:/app/query
+      - ./config:/app/config
+      - ./logs:/app/logs
+    env_file: .env
+    ports:
+      - "5000:5000"
+    depends_on:
+      - vector_db
+      - processor
+    networks:
+      - minimeai_network
+
+  web_ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    image: minimeai-web
+    container_name: minimeai-web
+    restart: unless-stopped
+    volumes:
+      - ./src/web:/app
+      - ./logs:/app/logs
+    env_file: .env
+    environment:
+      - API_HOST=api_service
+      - API_PORT=5000
+      - WEB_PORT=8080
+      - DEBUG_MODE=False
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api_service
+    networks:
+      - minimeai_network
+
+networks:
+  minimeai_network:
+    driver: bridge

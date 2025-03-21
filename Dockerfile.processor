@@ -1,0 +1,43 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Set Python path
+ENV PYTHONPATH=/app
+
+# Install essential system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    gcc \
+    g++ \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements file
+COPY requirements.processor.openai.txt /tmp/requirements.txt
+
+# Install basic dependencies first
+RUN pip install --no-cache-dir flask==2.0.1 flask-cors==3.0.10 werkzeug==2.0.3
+
+# Install numpy without scipy (scipy will be skipped)
+RUN pip install --no-cache-dir numpy==1.24.3
+
+# Install OpenAI with only numpy
+RUN pip install --no-cache-dir openai==0.28.1
+
+# Install remaining dependencies, excluding numpy, scipy, and openai
+RUN grep -v -E "numpy|scipy|openai" /tmp/requirements.txt > /tmp/requirements.clean.txt && \
+    pip install --upgrade pip && \
+    pip install --no-cache-dir -r /tmp/requirements.clean.txt
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/data
+
+# Copy source code - flatten the structure
+COPY src/processing/processor.py /app/processor.py
+COPY src/processing/chroma_client.py /app/chroma_client.py
+COPY src/utils/timing.py /app/timing.py
+COPY src/utils/logging_config.py /app/logging_config.py
+
+# Run command
+CMD ["python", "/app/processor.py"]

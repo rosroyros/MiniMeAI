@@ -1,0 +1,42 @@
+# Environment variables and secrets
+.env
+.env.save
+*.env
+
+# Logs
+logs/
+*.log
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Docker volumes
+data/
+
+# OS specific files
+.DS_Store
+._*
+
+# Editor specific files
+.vscode/
+.idea/
+
+# Backup files
+*.bak
+*.backup
+*.zip
+
+# Large data files
+*.csv
+*.xlsx
+*.db 

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniMeAI - Your Personal Assistant</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+</head>
+<body>
+    <div class="container">
+        <header class="text-center my-4">
+            <h1 class="display-4">MiniMeAI</h1>
+            <p class="lead">Your Personal Email and Messaging Assistant</p>
+        </header>
+
+        <div class="row">
+            <div class="col-md-10 offset-md-1">
+                <!-- Chat container -->
+                <div class="card mb-4 chat-container">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Conversation</h5>
+                        <button id="newConversation" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-plus-circle"></i> New Conversation
+                        </button>
+                    </div>
+                    <div class="card-body" id="chatMessages">
+                        <!-- Welcome message -->
+                        <div class="message ai-message">
+                            <div class="message-content">
+                                <p>Hello! I'm MiniMeAI, your personal assistant. Ask me anything about your emails or messages.</p>
+                            </div>
+                            <div class="message-info">
+                                <small class="text-muted">MiniMeAI</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Message history will be added here dynamically -->
+                    </div>
+                    <div class="card-footer">
+                        <form id="queryForm" class="d-flex">
+                            <input type="text" class="form-control" id="query" name="query" 
+                                   placeholder="Type your message here..." required>
+                            <button type="submit" class="btn btn-primary ms-2">
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Loading indicator -->
+                <div id="loading" class="text-center my-4 d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Processing your query...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-10 offset-md-1">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Example Questions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <ul class="example-queries">
+                                    <li><a href="#" class="example-query">What was my last email about?</a></li>
+                                    <li><a href="#" class="example-query">Show me emails from Seeking Alpha</a></li>
+                                    <li><a href="#" class="example-query">Did I receive any email about meetings today?</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul class="example-queries">
+                                    <li><a href="#" class="example-query">Summarize my recent emails from Google</a></li>
+                                    <li><a href="#" class="example-query">What's the main topic of my conversation with Alex?</a></li>
+                                    <li><a href="#" class="example-query">Which emails have attachments?</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer mt-5 py-3 bg-light">
+        <div class="container text-center">
+            <span class="text-muted">MiniMeAI &copy; 2025 - Running on Raspberry Pi</span>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
