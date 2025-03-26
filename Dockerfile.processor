@@ -25,6 +25,9 @@ RUN pip install --no-cache-dir numpy==1.24.3
 # Install OpenAI with only numpy
 RUN pip install --no-cache-dir openai==0.28.1
 
+# Install schedule package
+RUN pip install --no-cache-dir schedule
+
 # Install remaining dependencies, excluding numpy, scipy, and openai
 RUN grep -v -E "numpy|scipy|openai" /tmp/requirements.txt > /tmp/requirements.clean.txt && \
     pip install --upgrade pip && \
@@ -38,6 +41,10 @@ COPY src/processing/processor.py /app/processor.py
 COPY src/processing/chroma_client.py /app/chroma_client.py
 COPY src/utils/timing.py /app/timing.py
 COPY src/utils/logging_config.py /app/logging_config.py
+COPY src/utils/date_utils.py /app/date_utils.py
+
+# Update the import in processor.py
+RUN sed -i 's/from src.utils.date_utils import/from date_utils import/g' /app/processor.py
 
 # Run command
 CMD ["python", "/app/processor.py"]

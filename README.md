@@ -9,6 +9,7 @@ The application consists of several containerized microservices:
 - **API Server**: Handles external requests and provides access to the processed data
 - **Vector Database**: Stores and manages vector embeddings
 - **Email Processor**: Handles email collection and preprocessing
+- **WhatsApp Bridge**: Connects to WhatsApp and collects messages
 - **Web Interface**: Provides a user interface for interaction
 - **Processing Service**: Handles data processing and AI tasks
 
@@ -49,11 +50,17 @@ The project is structured as follows:
 - `Dockerfile.*` - Docker configuration for each service
 - `requirements.*.txt` - Python dependencies for each service
 
+## Architecture Documentation
+
+- [Messaging Architecture](docs/messaging_architecture.md) - Details about the data flow for email and WhatsApp messages
+- [Project Updates](docs/project_updates.md) - History of major project updates and improvements
+
 ## Project Updates
 
 For details on recent major updates to the project, see [Project Updates](docs/project_updates.md).
 
 Recent major updates:
+- **2025-03-26**: [WhatsApp Integration Alignment](docs/project_updates.md#whatsapp-integration-alignment---2025-03-26) - Redesigned WhatsApp architecture to follow a pull-based approach.
 - **2025-03-21**: [Timestamp Normalization Project](docs/project_updates.md#timestamp-normalization-project---2025-03-21) - Fixed timestamp handling and standardized source type attribution.
 - **2025-03-21**: [Timestamp Standardization](docs/project_updates.md#additional-improvements-2025-03-21) - Created unified timestamp handling module and standardized across all components.
 

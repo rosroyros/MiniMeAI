@@ -46,3 +46,36 @@
 - Standardized metadata fields across all document types
 - Implemented consistent error handling and logging
 - Added utilities for monitoring performance and debugging issues 
+
+## WhatsApp Integration Alignment - 2025-03-26
+
+### Initial Problem:
+- WhatsApp integration used a different architecture pattern than other data sources
+- WhatsApp bridge pushed messages directly to the API service
+- This created tight coupling between components and complicated error handling
+- API service needed to maintain a special endpoint just for WhatsApp ingestion
+
+#### 1. Redesigned WhatsApp Architecture
+- Changed from push-based to pull-based architecture (like the email flow)
+- Implemented local message caching in the WhatsApp bridge
+- Added a REST API endpoint to serve cached messages
+- Eliminated dependency on the API service for message ingestion
+
+#### 2. Enhanced WhatsApp Bridge
+- Added message storage with configurable cache size
+- Improved message format standardization with proper timestamps
+- Added better error handling and logging
+- Created a web API endpoint for message retrieval
+
+#### 3. Updated Processor Integration
+- Modified processor to pull messages from the WhatsApp bridge
+- Standardized WhatsApp message handling
+- Integrated with existing message processing pipeline
+- Improved metadata extraction for WhatsApp messages
+
+#### 4. Results
+- Simplified architecture with reduced coupling between components
+- More consistent handling of different message types
+- Improved error resilience when components restart
+- Better alignment with system-wide architectural patterns
+- Eliminated need for custom ingestion endpoint in API service 

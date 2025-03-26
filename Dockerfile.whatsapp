@@ -1,0 +1,51 @@
+FROM node:18-slim
+
+# Install dependencies for Puppeteer
+RUN apt-get update && apt-get install -y \
+    gconf-service \
+    libasound2 \
+    libatk1.0-0 \
+    libcairo2 \
+    libcups2 \
+    libfontconfig1 \
+    libgdk-pixbuf2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libpango-1.0-0 \
+    libxss1 \
+    libxtst6 \
+    fonts-liberation \
+    libgbm-dev \
+    libnss3 \
+    lsb-release \
+    xdg-utils \
+    wget \
+    ca-certificates \
+    chromium \
+    python3 \
+    procps
+
+# Set environment variables for Puppeteer
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Create app directories
+WORKDIR /app
+RUN mkdir -p /app/src/whatsapp/logs /app/src/whatsapp/.wwebjs_auth /logs
+
+# Set permissions (run as node user instead of creating a new user)
+RUN chown -R node:node /app /logs
+
+# Copy package files and install dependencies
+COPY src/whatsapp/bridge/package.json /app/
+USER node
+RUN npm install
+
+# Copy app source
+COPY --chown=node:node src/whatsapp/bridge/index.js /app/
+
+# Expose the port the app runs on
+EXPOSE 3001
+
+# Command to run the application
+CMD ["node", "index.js"]

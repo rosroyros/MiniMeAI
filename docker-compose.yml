@@ -17,6 +17,30 @@ services:
     networks:
       - minimeai_network
 
+  # WhatsApp bridge container
+  whatsapp_bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.whatsapp
+    image: minimeai-whatsapp
+    container_name: minimeai-whatsapp
+    restart: unless-stopped
+    volumes:
+      - ./src/whatsapp:/app/src/whatsapp
+      - ./config:/app/config
+      - /media/roy/Seagate/MiniMeAI/data/whatsapp:/app/data
+      - ./logs:/logs
+      - ./logs:/app/logs
+    env_file: .env
+    environment:
+      - MAX_CACHED_MESSAGES=1000
+    ports:
+      - "3001:3001"
+    networks:
+      - minimeai_network
+    depends_on:
+      - processor
+
   # Vector database (ChromaDB)
   vector_db:
     build:
@@ -46,6 +70,9 @@ services:
       - ./config:/app/config
       - ./logs:/app/logs
     env_file: .env
+    environment:
+      - WHATSAPP_API_HOST=whatsapp_bridge
+      - WHATSAPP_API_PORT=3001
     depends_on:
       - vector_db
     networks:

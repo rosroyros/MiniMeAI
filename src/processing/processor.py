@@ -45,6 +45,9 @@ CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "512"))
 PROCESSING_INTERVAL = int(os.getenv("PROCESSING_INTERVAL", "300"))  # 5 minutes
 DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() == "true"
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+# Add WhatsApp service environment variables
+WHATSAPP_API_HOST = os.getenv("WHATSAPP_API_HOST", "whatsapp_bridge")
+WHATSAPP_API_PORT = int(os.getenv("WHATSAPP_API_PORT", "3001"))
 
 # Initialize OpenAI API for v0.28
 if OPENAI_API_KEY:
@@ -519,26 +522,27 @@ def fetch_new_items() -> List[Dict[str, Any]]:
         
         # Fetch WhatsApp messages (if available)
         try:
+            logger.info(f"Attempting to fetch WhatsApp messages from {WHATSAPP_API_HOST}:{WHATSAPP_API_PORT}")
             response = requests.get(
-                f"http://{DATA_API_HOST}:{DATA_API_PORT}/api/whatsapp",
+                f"http://{WHATSAPP_API_HOST}:{WHATSAPP_API_PORT}/api/whatsapp",
                 params={"limit": 50},
                 timeout=5
             )
             
             if response.status_code == 200:
                 messages = response.json().get("messages", [])
-                logger.info(f"Fetched {len(messages)} WhatsApp messages from data service")
+                logger.info(f"Fetched {len(messages)} WhatsApp messages from WhatsApp bridge")
                 
                 for message in messages:
                     if message.get("id") and message.get("id") not in processed_ids.get("whatsapp", []):
-                        message["source_type"] = "whatsapp"
+                        # Message is already properly formatted with source_type='whatsapp'
                         all_items.append(message)
             else:
                 # WhatsApp endpoint might not be available yet
-                logger.debug(f"WhatsApp endpoint returned: {response.status_code}")
+                logger.warning(f"WhatsApp bridge returned: {response.status_code}, response: {response.text[:100]}")
         except Exception as e:
             # Don't retry for WhatsApp since it's optional
-            logger.debug(f"Error fetching WhatsApp messages (may not be implemented yet): {e}")
+            logger.warning(f"Error fetching WhatsApp messages: {e}")
         
         # Fetch text messages (if available)
         try:
