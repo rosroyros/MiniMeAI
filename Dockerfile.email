@@ -25,6 +25,7 @@ RUN mkdir -p /app/src/email /app/src/utils /app/data /app/config /app/logs
 # Copy utility modules
 COPY src/utils/base_fetcher.py /app/src/utils/base_fetcher.py
 COPY src/utils/timing.py /app/src/utils/timing.py
+COPY src/utils/date_utils.py /app/src/utils/date_utils.py
 
 # Copy email fetcher (will be mounted in development)
 COPY src/email/email_fetcher.py /app/src/email/email_fetcher.py
