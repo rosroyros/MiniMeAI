@@ -37,6 +37,10 @@ COPY src/api/api_server.py /app/api_server.py
 COPY src/processing/chroma_client.py /app/chroma_client.py
 COPY src/utils/timing.py /app/timing.py
 COPY src/utils/logging_config.py /app/logging_config.py
+COPY src/utils/date_utils.py /app/date_utils.py
+
+# Fix import paths
+RUN sed -i 's/from src.utils.date_utils import/from date_utils import/g' /app/api_server.py
 
 # Expose API port
 EXPOSE 5000
