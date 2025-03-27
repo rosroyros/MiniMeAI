@@ -119,14 +119,24 @@ def health():
             email_response = requests.get(f"http://{DATA_API_HOST}:{DATA_API_PORT}/api/emails", params={"limit": 500}, timeout=3)
             if email_response.status_code == 200:
                 emails = email_response.json().get("emails", [])
+                logger.info(f"Retrieved {len(emails)} emails from email service")
                 if emails:
                     # Get count of emails in the last 24 hours
                     now = datetime.now()
                     yesterday = now - timedelta(days=1)
                     yesterday_timestamp = int(yesterday.timestamp())
+                    logger.info(f"Checking for emails since timestamp: {yesterday_timestamp} ({yesterday.isoformat()})")
+                    
+                    # Log some sample timestamps for debugging
+                    sample_size = min(5, len(emails))
+                    sample_timestamps = [e.get("timestamp", 0) for e in emails[:sample_size]]
+                    sample_dates = [e.get("date", "unknown") for e in emails[:sample_size]]
+                    logger.info(f"Sample timestamps: {sample_timestamps}")
+                    logger.info(f"Sample dates: {sample_dates}")
                     
                     # Filter emails from last 24 hours
                     recent_emails = [e for e in emails if e.get("timestamp", 0) >= yesterday_timestamp]
+                    logger.info(f"Found {len(recent_emails)} emails in the last 24 hours")
                     
                     # Find most recent email timestamp
                     timestamps = [e.get("timestamp", 0) for e in emails]
