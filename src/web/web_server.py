@@ -4,6 +4,7 @@ import logging
 import json
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from datetime import datetime, timedelta
+from email.utils import parsedate_to_datetime
 
 # Configure logging
 logging.basicConfig(
@@ -127,11 +128,61 @@ def health():
                     yesterday_timestamp = int(yesterday.timestamp())
                     logger.info(f"Checking for emails since timestamp: {yesterday_timestamp} ({yesterday.isoformat()})")
                     
+                    # Process email dates to get valid timestamps
+                    # Function to parse date strings
+                    def get_email_timestamp(email_obj):
+                        timestamp = email_obj.get("timestamp", 0)
+                        if timestamp and timestamp > 0:
+                            return timestamp
+                        
+                        # Try to parse the date string
+                        date_str = email_obj.get("date", "")
+                        if not date_str:
+                            return 0
+                        
+                        try:
+                            # Try email.utils parser (good for standard email formats)
+                            dt = parsedate_to_datetime(date_str)
+                            return int(dt.timestamp())
+                        except Exception as e:
+                            logger.error(f"Error parsing date '{date_str}': {e}")
+                            
+                            # Try a simple manual parsing for common formats
+                            try:
+                                # Try manual parsing with some common patterns
+                                # Example: "13 Mar 2025 10:14:18 +0200"
+                                import re
+                                
+                                # Extract date components with regex
+                                pattern = r'(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})'
+                                match = re.search(pattern, date_str)
+                                
+                                if match:
+                                    day, month_str, year, hour, minute, second = match.groups()
+                                    
+                                    # Convert month string to number
+                                    months = {
+                                        'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+                                        'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+                                    }
+                                    month = months.get(month_str, 1)  # Default to January if not found
+                                    
+                                    # Create datetime object and return timestamp
+                                    dt = datetime(int(year), month, int(day), int(hour), int(minute), int(second))
+                                    return int(dt.timestamp())
+                            except Exception:
+                                return 0
+                        
+                    # Update emails with parsed timestamps
+                    for email_obj in emails:
+                        if not email_obj.get("timestamp", 0):
+                            email_obj["timestamp"] = get_email_timestamp(email_obj)
+                    
                     # Log some sample timestamps for debugging
                     sample_size = min(5, len(emails))
                     sample_timestamps = [e.get("timestamp", 0) for e in emails[:sample_size]]
                     sample_dates = [e.get("date", "unknown") for e in emails[:sample_size]]
-                    logger.info(f"Sample timestamps: {sample_timestamps}")
+                    logger.info(f"Sample timestamps after parsing: {sample_timestamps}")
                     logger.info(f"Sample dates: {sample_dates}")
                     
                     # Filter emails from last 24 hours
