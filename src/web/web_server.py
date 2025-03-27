@@ -261,9 +261,12 @@ def health():
             vector_db_response = requests.get(f"http://{VECTOR_DB_HOST}:{VECTOR_DB_PORT}/api/v1/collections/{VECTOR_COLLECTION_NAME}/status", timeout=3)
             if vector_db_response.status_code == 200:
                 status_data = vector_db_response.json()
-                vector_count = status_data.get("count", 0)
-                if "count" not in status_data and "document_count" in status_data:
-                    vector_count = status_data.get("document_count", 0)
+                # Check different possible field names for the count
+                vector_count = status_data.get("total_vectors", 0)
+                if vector_count == 0:
+                    # Try alternative field names if total_vectors isn't found or is zero
+                    vector_count = status_data.get("count", 0) or status_data.get("document_count", 0)
+                
                 health_stats["data_sources"]["vector_db"] = {
                     "status": "ok",
                     "total_count": vector_count
