@@ -25,7 +25,7 @@ DATA_API_HOST = os.getenv("DATA_API_HOST", "email_service")
 DATA_API_PORT = int(os.getenv("DATA_API_PORT", "5000"))
 VECTOR_DB_HOST = os.getenv("VECTOR_DB_HOST", "vector_db")
 VECTOR_DB_PORT = int(os.getenv("VECTOR_DB_PORT", "8000"))
-VECTOR_COLLECTION_NAME = os.getenv("VECTOR_COLLECTION_NAME", "messages_collection")
+VECTOR_COLLECTION_NAME = os.getenv("VECTOR_COLLECTION_NAME", "emails")
 WHATSAPP_API_HOST = os.getenv("WHATSAPP_API_HOST", "whatsapp_bridge")
 WHATSAPP_API_PORT = int(os.getenv("WHATSAPP_API_PORT", "3001"))
 
