@@ -1,19 +1,21 @@
 /* Custom styles for MiniMeAI */
 
 :root {
-    --primary-color: #0366d6;
-    --secondary-color: #5c7080;
-    --accent-color: #ffcb6b;
-    --bg-color: #f8f9fa;
-    --text-color: #333;
-    --border-radius: 8px;
-    --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    --user-message-bg: #e3f2fd;
+    --primary-color: #2563eb;
+    --primary-dark: #1d4ed8;
+    --secondary-color: #64748b;
+    --accent-color: #3b82f6;
+    --bg-color: #f8fafc;
+    --text-color: #1e293b;
+    --border-radius: 12px;
+    --box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --user-message-bg: #eff6ff;
     --ai-message-bg: #f1f5f9;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background-color: var(--bg-color);
     color: var(--text-color);
     line-height: 1.6;
@@ -27,11 +29,23 @@ body {
 /* Header Styles */
 header {
     margin-bottom: 2rem;
+    padding: 2rem 0;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    border-radius: var(--border-radius);
+    color: white;
+    box-shadow: var(--box-shadow);
 }
 
 header h1 {
-    color: var(--primary-color);
-    font-weight: 700;
+    color: white;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    font-size: 2.5rem;
+}
+
+header .lead {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.1rem;
 }
 
 /* Card Styles */
@@ -40,13 +54,20 @@ header h1 {
     box-shadow: var(--box-shadow);
     border: none;
     margin-bottom: 1.5rem;
+    transition: var(--transition);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 .card-header {
     border-top-left-radius: var(--border-radius) !important;
     border-top-right-radius: var(--border-radius) !important;
-    background-color: #f1f5f9;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background-color: white;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 1.25rem;
 }
 
 /* Chat Container */
@@ -54,19 +75,31 @@ header h1 {
     height: 600px;
     display: flex;
     flex-direction: column;
+    background: white;
 }
 
 .chat-container .card-body {
     flex: 1;
     overflow-y: auto;
     padding: 1.5rem;
+    scroll-behavior: smooth;
 }
 
 /* Message Styles */
 .message {
     margin-bottom: 1.5rem;
-    max-width: 80%;
+    max-width: 85%;
     clear: both;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: messageAppear 0.3s ease forwards;
+}
+
+@keyframes messageAppear {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .user-message {
@@ -80,26 +113,28 @@ header h1 {
 }
 
 .message-content {
-    padding: 1rem;
+    padding: 1rem 1.25rem;
     border-radius: var(--border-radius);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: var(--transition);
 }
 
 .user-message .message-content {
     background-color: var(--user-message-bg);
-    border-bottom-right-radius: 0;
+    border-bottom-right-radius: 4px;
 }
 
 .ai-message .message-content {
     background-color: var(--ai-message-bg);
-    border-bottom-left-radius: 0;
+    border-bottom-left-radius: 4px;
 }
 
 .message-info {
     display: flex;
     justify-content: flex-start;
     margin-top: 0.5rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    color: var(--secondary-color);
 }
 
 .user-message .message-info {
@@ -108,40 +143,47 @@ header h1 {
 
 /* Input Form */
 .card-footer {
-    padding: 1rem;
-    background-color: #fff;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 1.25rem;
+    background-color: white;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 #queryForm {
     display: flex;
     align-items: center;
+    gap: 0.75rem;
 }
 
 #query {
     flex: 1;
     border-radius: var(--border-radius);
-    padding: 0.75rem 1rem;
-    border: 1px solid #ced4da;
+    padding: 0.875rem 1.25rem;
+    border: 2px solid #e2e8f0;
+    font-size: 1rem;
+    transition: var(--transition);
 }
 
 #query:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(3, 102, 214, 0.25);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    outline: none;
 }
 
 .btn-primary {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
     border-radius: var(--border-radius);
-    padding: 0.75rem 1.5rem;
+    padding: 0.875rem 1.5rem;
     font-weight: 600;
-    transition: all 0.2s ease;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .btn-primary:hover {
-    background-color: #0353a8;
-    border-color: #0353a8;
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
     transform: translateY(-2px);
 }
 
@@ -158,22 +200,34 @@ header h1 {
 .example-query {
     color: var(--primary-color);
     text-decoration: none;
-    transition: color 0.2s ease;
+    transition: var(--transition);
+    display: block;
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius);
+    background-color: white;
+    border: 1px solid #e2e8f0;
 }
 
 .example-query:hover {
-    color: #0353a8;
-    text-decoration: underline;
+    color: var(--primary-dark);
+    background-color: var(--user-message-bg);
+    transform: translateX(4px);
+    border-color: var(--primary-color);
 }
 
 /* Loading Spinner */
 #loading {
     margin: 2rem auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
 }
 
 .spinner-border {
-    width: 3rem;
-    height: 3rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    color: var(--primary-color);
 }
 
 /* Footer */
@@ -183,7 +237,9 @@ header h1 {
     width: 100%;
     height: 60px;
     line-height: 60px;
-    border-top: 1px solid #e7e7e7;
+    border-top: 1px solid #e2e8f0;
+    background-color: white;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.05);
 }
 
 /* Message formatting */
@@ -197,8 +253,14 @@ header h1 {
 
 /* New Conversation Button */
 #newConversation {
-    padding: 0.25rem 0.5rem;
+    padding: 0.5rem 1rem;
     font-size: 0.875rem;
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+}
+
+#newConversation:hover {
+    transform: translateY(-2px);
 }
 
 /* Media Queries */
@@ -207,19 +269,99 @@ header h1 {
         padding: 0 1rem;
     }
     
+    header {
+        padding: 1.5rem 1rem;
+    }
+    
+    header h1 {
+        font-size: 2rem;
+    }
+    
     .message {
-        max-width: 90%;
+        max-width: 95%;
     }
     
     .btn-primary {
-        padding: 0.5rem 1rem;
+        padding: 0.75rem 1.25rem;
     }
     
     .example-queries li {
-        margin-bottom: 1rem;
+        margin-bottom: 0.5rem;
     }
     
     .chat-container {
-        height: 500px;
+        height: calc(100vh - 400px);
     }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .health-item {
+        margin-bottom: 15px;
+    }
+    
+    .col-md-4:last-child .health-item {
+        margin-bottom: 0;
+    }
+}
+
+/* New styles for the Health Dashboard */
+
+.health-item {
+    padding: 10px 15px;
+    border-radius: var(--border-radius);
+    margin-bottom: 10px;
+    transition: var(--transition);
+    background-color: rgba(248, 249, 250, 0.7);
+}
+
+.health-item:hover {
+    background-color: #f0f3f8;
+}
+
+.health-source {
+    font-weight: 600;
+    color: var(--secondary-color);
+}
+
+.health-count {
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.health-date {
+    display: flex;
+    justify-content: flex-end;
+    color: var(--secondary-color);
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    padding: 0.2em 0.6em;
+    margin-top: 5px;
+}
+
+#refreshHealthBtn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+#refreshHealthBtn:hover {
+    background-color: var(--bg-color);
+}
+
+/* End of Health Dashboard styles */
+
+/* Animations for gauges */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.pulse-animation {
+    animation: pulse 0.5s ease-in-out;
 }

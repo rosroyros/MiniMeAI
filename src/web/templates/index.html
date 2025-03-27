@@ -4,35 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MiniMeAI - Your Personal Assistant</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#2563eb">
 </head>
 <body>
     <div class="container">
         <header class="text-center my-4">
-            <h1 class="display-4">MiniMeAI</h1>
-            <p class="lead">Your Personal Email and Messaging Assistant</p>
+            <div class="header-content">
+                <h1>MiniMeAI</h1>
+                <p class="lead">Your Intelligent Email and Messaging Assistant</p>
+                <div class="header-stats">
+                    <span class="stat-item">
+                        <i class="bi bi-lightning-charge"></i>
+                        Real-time Processing
+                    </span>
+                    <span class="stat-item">
+                        <i class="bi bi-shield-check"></i>
+                        Secure & Private
+                    </span>
+                    <span class="stat-item">
+                        <i class="bi bi-robot"></i>
+                        AI-Powered
+                    </span>
+                </div>
+            </div>
         </header>
 
         <div class="row">
             <div class="col-md-10 offset-md-1">
                 <!-- Chat container -->
                 <div class="card mb-4 chat-container">
-                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Conversation</h5>
-                        <button id="newConversation" class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-plus-circle"></i> New Conversation
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-chat-dots me-2"></i>
+                            <h5 class="mb-0">Conversation</h5>
+                        </div>
+                        <button id="newConversation" class="btn btn-outline-primary">
+                            <i class="bi bi-plus-circle me-1"></i> New Chat
                         </button>
                     </div>
                     <div class="card-body" id="chatMessages">
                         <!-- Welcome message -->
                         <div class="message ai-message">
                             <div class="message-content">
-                                <p>Hello! I'm MiniMeAI, your personal assistant. Ask me anything about your emails or messages.</p>
+                                <p>👋 Hello! I'm MiniMeAI, your personal assistant. I can help you with:</p>
+                                <ul class="feature-list">
+                                    <li>📧 Email analysis and summarization</li>
+                                    <li>🔍 Smart search across your messages</li>
+                                    <li>📊 Insights and trends from your communications</li>
+                                    <li>📝 Quick responses and drafts</li>
+                                </ul>
+                                <p>What would you like to know about your emails?</p>
                             </div>
                             <div class="message-info">
-                                <small class="text-muted">MiniMeAI</small>
+                                <i class="bi bi-robot me-1"></i>
+                                <span>MiniMeAI</span>
                             </div>
                         </div>
                         
@@ -41,8 +70,8 @@
                     <div class="card-footer">
                         <form id="queryForm" class="d-flex">
                             <input type="text" class="form-control" id="query" name="query" 
-                                   placeholder="Type your message here..." required>
-                            <button type="submit" class="btn btn-primary ms-2">
+                                   placeholder="Type your message here..." required autocomplete="off">
+                            <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-send"></i>
                             </button>
                         </form>
@@ -51,7 +80,7 @@
                 
                 <!-- Loading indicator -->
                 <div id="loading" class="text-center my-4 d-none">
-                    <div class="spinner-border text-primary" role="status">
+                    <div class="spinner-border" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
                     <p class="mt-2">Processing your query...</p>
@@ -62,23 +91,54 @@
         <div class="row mt-4">
             <div class="col-md-10 offset-md-1">
                 <div class="card">
-                    <div class="card-header bg-light">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="bi bi-lightbulb me-2"></i>
                         <h5 class="mb-0">Example Questions</h5>
                     </div>
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
                                 <ul class="example-queries">
-                                    <li><a href="#" class="example-query">What was my last email about?</a></li>
-                                    <li><a href="#" class="example-query">Show me emails from Seeking Alpha</a></li>
-                                    <li><a href="#" class="example-query">Did I receive any email about meetings today?</a></li>
+                                    <li>
+                                        <a href="#" class="example-query">
+                                            <i class="bi bi-envelope me-2"></i>
+                                            What was my last email about?
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="#" class="example-query">
+                                            <i class="bi bi-search me-2"></i>
+                                            Show me emails from Seeking Alpha
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="#" class="example-query">
+                                            <i class="bi bi-calendar-check me-2"></i>
+                                            Did I receive any email about meetings today?
+                                        </a>
+                                    </li>
                                 </ul>
                             </div>
                             <div class="col-md-6">
                                 <ul class="example-queries">
-                                    <li><a href="#" class="example-query">Summarize my recent emails from Google</a></li>
-                                    <li><a href="#" class="example-query">What's the main topic of my conversation with Alex?</a></li>
-                                    <li><a href="#" class="example-query">Which emails have attachments?</a></li>
+                                    <li>
+                                        <a href="#" class="example-query">
+                                            <i class="bi bi-file-text me-2"></i>
+                                            Summarize my recent emails from Google
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="#" class="example-query">
+                                            <i class="bi bi-chat me-2"></i>
+                                            What's the main topic of my conversation with Alex?
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="#" class="example-query">
+                                            <i class="bi bi-paperclip me-2"></i>
+                                            Which emails have attachments?
+                                        </a>
+                                    </li>
                                 </ul>
                             </div>
                         </div>
@@ -86,11 +146,76 @@
                 </div>
             </div>
         </div>
+
+        <!-- System Health Dashboard -->
+        <div class="row mt-4 mb-5">
+            <div class="col-md-10 offset-md-1">
+                <div class="card">
+                    <div class="card-header d-flex align-items-center justify-content-between">
+                        <div>
+                            <i class="bi bi-speedometer2 me-2"></i>
+                            <h5 class="mb-0 d-inline">System Health</h5>
+                        </div>
+                        <button id="refreshHealthBtn" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                    <div class="card-body pt-3 pb-2">
+                        <div class="row align-items-center">
+                            <!-- Email Stats -->
+                            <div class="col-md-4">
+                                <div class="health-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="health-source"><i class="bi bi-envelope me-2"></i>Email</span>
+                                        <span class="health-count"><span id="emailCount">-</span> in 24h</span>
+                                    </div>
+                                    <div class="health-date" title="">
+                                        <small>Latest: <span id="emailTimestamp">-</span></small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- WhatsApp Stats -->
+                            <div class="col-md-4">
+                                <div class="health-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="health-source"><i class="bi bi-chat-dots me-2"></i>WhatsApp</span>
+                                        <span class="health-count"><span id="whatsappCount">-</span> in 24h</span>
+                                    </div>
+                                    <div class="health-date" title="">
+                                        <small>Latest: <span id="whatsappTimestamp">-</span></small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Vector DB Stats -->
+                            <div class="col-md-4">
+                                <div class="health-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="health-source"><i class="bi bi-database me-2"></i>Vector DB</span>
+                                        <span class="health-count"><span id="vectorDbCount">-</span> items</span>
+                                    </div>
+                                    <div class="d-flex justify-content-end">
+                                        <span id="vectorDbStatus" class="status-badge badge bg-secondary">Unknown</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted">Updated: <span id="lastUpdatedTime">-</span></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <footer class="footer mt-5 py-3 bg-light">
+    <footer class="footer mt-5 py-3">
         <div class="container text-center">
-            <span class="text-muted">MiniMeAI &copy; 2025 - Running on Raspberry Pi</span>
+            <span class="text-muted">
+                <i class="bi bi-cpu me-1"></i>
+                MiniMeAI &copy; 2025 - Powered by Raspberry Pi
+            </span>
         </div>
     </footer>
 

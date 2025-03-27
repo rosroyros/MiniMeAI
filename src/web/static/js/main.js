@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatMessages = document.getElementById('chatMessages');
     const newConversationBtn = document.getElementById('newConversation');
     const exampleQueries = document.querySelectorAll('.example-query');
+    const refreshHealthBtn = document.getElementById('refreshHealthBtn');
     
     // Store conversation history
     let conversationHistory = [];
@@ -22,6 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (e) {
         console.error('Error loading conversation history:', e);
     }
+    
+    // Initialize health dashboard
+    initializeHealthDashboard();
     
     // Handle form submission with AJAX
     if (queryForm) {
@@ -113,6 +117,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 queryInput.value = exampleText;
                 queryInput.focus();
             });
+        });
+    }
+    
+    // Handle refresh health button
+    if (refreshHealthBtn) {
+        refreshHealthBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            updateHealthDashboard();
         });
     }
     
@@ -242,5 +254,110 @@ document.addEventListener('DOMContentLoaded', function() {
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
+    }
+    
+    // Health Dashboard Functions
+    
+    function initializeHealthDashboard() {
+        // Initial update without setting up auto-refresh
+        updateHealthDashboard();
+    }
+    
+    function updateHealthDashboard() {
+        // Show loading state
+        document.getElementById('lastUpdatedTime').textContent = 'Updating...';
+        
+        // Fetch health data
+        fetch('/health')
+            .then(response => response.json())
+            .then(data => {
+                // Update last updated time
+                const lastUpdatedEl = document.getElementById('lastUpdatedTime');
+                if (lastUpdatedEl) {
+                    const now = new Date();
+                    lastUpdatedEl.textContent = now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                }
+                
+                // Update email metrics
+                if (data.data_sources && data.data_sources.email) {
+                    const emailData = data.data_sources.email;
+                    
+                    // Update count
+                    const emailCountEl = document.getElementById('emailCount');
+                    if (emailCountEl) {
+                        emailCountEl.textContent = emailData.last_24h_count || 0;
+                    }
+                    
+                    // Update timestamp
+                    const emailTimestampEl = document.getElementById('emailTimestamp');
+                    if (emailTimestampEl && emailData.latest_date) {
+                        const date = new Date(emailData.latest_date);
+                        // Format as DD/MM
+                        const shortDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                        emailTimestampEl.textContent = shortDate;
+                        
+                        // Add full timestamp as tooltip
+                        const fullTimestamp = date.toLocaleString();
+                        emailTimestampEl.parentElement.parentElement.title = fullTimestamp;
+                    } else if (emailTimestampEl) {
+                        emailTimestampEl.textContent = '-';
+                    }
+                }
+                
+                // Update WhatsApp metrics
+                if (data.data_sources && data.data_sources.whatsapp) {
+                    const whatsappData = data.data_sources.whatsapp;
+                    
+                    // Update count
+                    const whatsappCountEl = document.getElementById('whatsappCount');
+                    if (whatsappCountEl) {
+                        whatsappCountEl.textContent = whatsappData.last_24h_count || 0;
+                    }
+                    
+                    // Update timestamp
+                    const whatsappTimestampEl = document.getElementById('whatsappTimestamp');
+                    if (whatsappTimestampEl && whatsappData.latest_date) {
+                        const date = new Date(whatsappData.latest_date);
+                        // Format as DD/MM
+                        const shortDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                        whatsappTimestampEl.textContent = shortDate;
+                        
+                        // Add full timestamp as tooltip
+                        const fullTimestamp = date.toLocaleString();
+                        whatsappTimestampEl.parentElement.parentElement.title = fullTimestamp;
+                    } else if (whatsappTimestampEl) {
+                        whatsappTimestampEl.textContent = '-';
+                    }
+                }
+                
+                // Update Vector DB metrics
+                if (data.data_sources && data.data_sources.vector_db) {
+                    const vectorDbData = data.data_sources.vector_db;
+                    
+                    // Update count
+                    const vectorDbCountEl = document.getElementById('vectorDbCount');
+                    if (vectorDbCountEl) {
+                        vectorDbCountEl.textContent = vectorDbData.total_count || 0;
+                    }
+                    
+                    // Update status
+                    const vectorDbStatusEl = document.getElementById('vectorDbStatus');
+                    if (vectorDbStatusEl) {
+                        const status = vectorDbData.status || 'unknown';
+                        vectorDbStatusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                        
+                        // Update badge class
+                        vectorDbStatusEl.className = 'badge ' + 
+                            (status === 'ok' ? 'bg-success' : 
+                             status === 'error' ? 'bg-danger' : 'bg-secondary');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error updating health dashboard:', error);
+                
+                // Update with error state
+                document.getElementById('lastUpdatedTime').textContent = 'Failed to update';
+            });
     }
 });
