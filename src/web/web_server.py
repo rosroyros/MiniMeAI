@@ -196,7 +196,7 @@ def health():
         
         # Vector DB stats
         try:
-            vector_db_response = requests.get(f"http://{VECTOR_DB_HOST}:{VECTOR_DB_PORT}/api/v1/collections/{VECTOR_COLLECTION_NAME}/count", timeout=3)
+            vector_db_response = requests.post(f"http://{VECTOR_DB_HOST}:{VECTOR_DB_PORT}/api/v1/collections/{VECTOR_COLLECTION_NAME}/count", json={}, timeout=3)
             if vector_db_response.status_code == 200:
                 vector_count = vector_db_response.json().get("count", 0)
                 health_stats["data_sources"]["vector_db"] = {
