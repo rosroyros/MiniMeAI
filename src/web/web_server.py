@@ -93,11 +93,7 @@ def ask():
 @app.route('/health')
 def health():
     """Enhanced health check endpoint with data source metrics."""
-    import random
     from datetime import datetime, timedelta
-    
-    # Mock data for demonstration
-    now = datetime.now()
     
     # Data sources statistics
     health_stats = {
@@ -106,33 +102,171 @@ def health():
         "data_sources": {}
     }
     
-    # Mock Email data
-    email_latest = now - timedelta(minutes=random.randint(5, 60))
+    # ===== MOCK DATA FOR DEMONSTRATION =====
+    # Note: This section uses static mock data instead of real metrics.
+    # In production, this should be replaced with the real implementation below.
+    now = datetime.now()
+    
+    # Mock Email data - using fixed values instead of random
+    email_latest = now - timedelta(minutes=45)
     health_stats["data_sources"]["email"] = {
         "status": "ok",
-        "total_count": random.randint(500, 2000),
-        "last_24h_count": random.randint(10, 100),
+        "total_count": 1250,
+        "last_24h_count": 37,
         "latest_timestamp": int(email_latest.timestamp()),
         "latest_date": email_latest.isoformat()
     }
     
-    # Mock WhatsApp data
-    whatsapp_latest = now - timedelta(minutes=random.randint(15, 120))
+    # Mock WhatsApp data - using fixed values instead of random
+    whatsapp_latest = now - timedelta(minutes=75)
     health_stats["data_sources"]["whatsapp"] = {
         "status": "ok",
-        "total_count": random.randint(200, 1000),
-        "last_24h_count": random.randint(5, 50),
+        "total_count": 580,
+        "last_24h_count": 24,
         "latest_timestamp": int(whatsapp_latest.timestamp()),
         "latest_date": whatsapp_latest.isoformat()
     }
     
-    # Mock Vector DB data
+    # Mock Vector DB data - using fixed values instead of random
     health_stats["data_sources"]["vector_db"] = {
         "status": "ok",
-        "total_count": random.randint(1000, 5000)
+        "total_count": 3450
     }
     
     return jsonify(health_stats), 200
+    
+    # ===== REAL IMPLEMENTATION (COMMENTED OUT) =====
+    # The code below shows how to implement this endpoint with real data.
+    # Uncomment and modify as needed when the services are available.
+    """
+    try:
+        # Basic service status checks
+        api_status = "ok"
+        try:
+            response = requests.get(f"http://{API_HOST}:{API_PORT}/api/health", timeout=3)
+            if response.status_code != 200:
+                api_status = "error"
+        except Exception as e:
+            logger.error(f"API health check failed: {e}")
+            api_status = "error"
+        
+        # Data sources statistics
+        health_stats = {
+            "web_server": "ok",
+            "api_service": api_status,
+            "data_sources": {}
+        }
+        
+        # Email metrics
+        try:
+            email_response = requests.get(f"http://{DATA_API_HOST}:{DATA_API_PORT}/api/emails", params={"limit": 500}, timeout=3)
+            if email_response.status_code == 200:
+                emails = email_response.json().get("emails", [])
+                if emails:
+                    # Get count of emails in the last 24 hours
+                    now = datetime.now()
+                    yesterday = now - timedelta(days=1)
+                    yesterday_timestamp = int(yesterday.timestamp())
+                    
+                    # Filter emails from last 24 hours
+                    recent_emails = [e for e in emails if e.get("timestamp", 0) >= yesterday_timestamp]
+                    
+                    # Find most recent email timestamp
+                    timestamps = [e.get("timestamp", 0) for e in emails]
+                    latest_timestamp = max(timestamps) if timestamps else 0
+                    
+                    health_stats["data_sources"]["email"] = {
+                        "status": "ok",
+                        "total_count": len(emails),
+                        "last_24h_count": len(recent_emails),
+                        "latest_timestamp": latest_timestamp,
+                        "latest_date": datetime.fromtimestamp(latest_timestamp).isoformat() if latest_timestamp else None
+                    }
+                else:
+                    health_stats["data_sources"]["email"] = {
+                        "status": "ok",
+                        "total_count": 0,
+                        "last_24h_count": 0,
+                        "latest_timestamp": None,
+                        "latest_date": None
+                    }
+        except Exception as e:
+            logger.error(f"Email metrics check failed: {e}")
+            health_stats["data_sources"]["email"] = {
+                "status": "error",
+                "error": str(e)
+            }
+        
+        # WhatsApp metrics
+        try:
+            whatsapp_response = requests.get(f"http://{WHATSAPP_API_HOST}:{WHATSAPP_API_PORT}/api/whatsapp", params={"limit": 500}, timeout=3)
+            if whatsapp_response.status_code == 200:
+                messages = whatsapp_response.json().get("messages", [])
+                if messages:
+                    # Get count of messages in the last 24 hours
+                    now = datetime.now()
+                    yesterday = now - timedelta(days=1)
+                    yesterday_timestamp = int(yesterday.timestamp())
+                    
+                    # Filter messages from last 24 hours
+                    recent_messages = [m for m in messages if m.get("timestamp", 0) >= yesterday_timestamp]
+                    
+                    # Find most recent message timestamp
+                    timestamps = [m.get("timestamp", 0) for m in messages]
+                    latest_timestamp = max(timestamps) if timestamps else 0
+                    
+                    health_stats["data_sources"]["whatsapp"] = {
+                        "status": "ok",
+                        "total_count": len(messages),
+                        "last_24h_count": len(recent_messages),
+                        "latest_timestamp": latest_timestamp,
+                        "latest_date": datetime.fromtimestamp(latest_timestamp).isoformat() if latest_timestamp else None
+                    }
+                else:
+                    health_stats["data_sources"]["whatsapp"] = {
+                        "status": "ok",
+                        "total_count": 0,
+                        "last_24h_count": 0,
+                        "latest_timestamp": None,
+                        "latest_date": None
+                    }
+        except Exception as e:
+            logger.error(f"WhatsApp metrics check failed: {e}")
+            health_stats["data_sources"]["whatsapp"] = {
+                "status": "unavailable",
+                "error": str(e)
+            }
+        
+        # Vector DB stats
+        try:
+            vector_db_response = requests.get(f"http://{VECTOR_DB_HOST}:{VECTOR_DB_PORT}/api/v1/collections/{VECTOR_COLLECTION_NAME}/count", timeout=3)
+            if vector_db_response.status_code == 200:
+                vector_count = vector_db_response.json().get("count", 0)
+                health_stats["data_sources"]["vector_db"] = {
+                    "status": "ok",
+                    "total_count": vector_count
+                }
+            else:
+                health_stats["data_sources"]["vector_db"] = {
+                    "status": "error",
+                    "error": f"Status code: {vector_db_response.status_code}"
+                }
+        except Exception as e:
+            logger.error(f"Vector DB metrics check failed: {e}")
+            health_stats["data_sources"]["vector_db"] = {
+                "status": "error",
+                "error": str(e)
+            }
+        
+        return jsonify(health_stats), 200
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({
+            "web_server": "ok",
+            "api_service": "unknown",
+            "error": str(e)
+        }), 500
+    """
 
 @app.route('/recent_emails')
 def recent_emails():
