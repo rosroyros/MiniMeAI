@@ -95,50 +95,7 @@ def health():
     """Enhanced health check endpoint with data source metrics."""
     from datetime import datetime, timedelta
     
-    # Data sources statistics
-    health_stats = {
-        "web_server": "ok",
-        "api_service": "ok",
-        "data_sources": {}
-    }
-    
-    # ===== MOCK DATA FOR DEMONSTRATION =====
-    # Note: This section uses static mock data instead of real metrics.
-    # In production, this should be replaced with the real implementation below.
-    now = datetime.now()
-    
-    # Mock Email data - using fixed values instead of random
-    email_latest = now - timedelta(minutes=45)
-    health_stats["data_sources"]["email"] = {
-        "status": "ok",
-        "total_count": 1250,
-        "last_24h_count": 37,
-        "latest_timestamp": int(email_latest.timestamp()),
-        "latest_date": email_latest.isoformat()
-    }
-    
-    # Mock WhatsApp data - using fixed values instead of random
-    whatsapp_latest = now - timedelta(minutes=75)
-    health_stats["data_sources"]["whatsapp"] = {
-        "status": "ok",
-        "total_count": 580,
-        "last_24h_count": 24,
-        "latest_timestamp": int(whatsapp_latest.timestamp()),
-        "latest_date": whatsapp_latest.isoformat()
-    }
-    
-    # Mock Vector DB data - using fixed values instead of random
-    health_stats["data_sources"]["vector_db"] = {
-        "status": "ok",
-        "total_count": 3450
-    }
-    
-    return jsonify(health_stats), 200
-    
-    # ===== REAL IMPLEMENTATION (COMMENTED OUT) =====
-    # The code below shows how to implement this endpoint with real data.
-    # Uncomment and modify as needed when the services are available.
-    """
+    # ===== REAL IMPLEMENTATION =====
     try:
         # Basic service status checks
         api_status = "ok"
@@ -266,6 +223,39 @@ def health():
             "api_service": "unknown",
             "error": str(e)
         }), 500
+        
+    # ===== MOCK DATA FOR DEMONSTRATION (COMMENTED OUT) =====
+    # Note: This section uses static mock data instead of real metrics.
+    """
+    now = datetime.now()
+    
+    # Mock Email data - using fixed values instead of random
+    email_latest = now - timedelta(minutes=45)
+    health_stats["data_sources"]["email"] = {
+        "status": "ok",
+        "total_count": 1250,
+        "last_24h_count": 37,
+        "latest_timestamp": int(email_latest.timestamp()),
+        "latest_date": email_latest.isoformat()
+    }
+    
+    # Mock WhatsApp data - using fixed values instead of random
+    whatsapp_latest = now - timedelta(minutes=75)
+    health_stats["data_sources"]["whatsapp"] = {
+        "status": "ok",
+        "total_count": 580,
+        "last_24h_count": 24,
+        "latest_timestamp": int(whatsapp_latest.timestamp()),
+        "latest_date": whatsapp_latest.isoformat()
+    }
+    
+    # Mock Vector DB data - using fixed values instead of random
+    health_stats["data_sources"]["vector_db"] = {
+        "status": "ok",
+        "total_count": 3450
+    }
+    
+    return jsonify(health_stats), 200
     """
 
 @app.route('/recent_emails')
