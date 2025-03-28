@@ -409,33 +409,43 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('emailCount').textContent = '...';
         document.getElementById('whatsappCount').textContent = '...';
         document.getElementById('vectorDbCount').textContent = '...';
-        document.getElementById('lastUpdatedTime').textContent = '...';
         
         // Get health data
         fetch('/health')
             .then(response => response.json())
             .then(data => {
-                // Update the health dashboard with the data
-                document.getElementById('emailCount').textContent = data.email_count || '0';
-                document.getElementById('emailTimestamp').textContent = data.last_email_time || 'None';
+                console.log('Health data received:', data);  // Debug log
                 
-                document.getElementById('whatsappCount').textContent = data.whatsapp_count || '0';
-                document.getElementById('whatsappTimestamp').textContent = data.last_whatsapp_time || 'None';
+                // Update Email stats
+                const emailData = data.data_sources?.email || {};
+                document.getElementById('emailCount').textContent = emailData.last_24h_count || '0';
+                document.getElementById('emailTimestamp').textContent = 
+                    emailData.latest_date ? new Date(emailData.latest_date).toLocaleString() : 'None';
                 
-                document.getElementById('vectorDbCount').textContent = data.vector_count || '0';
+                // Update WhatsApp stats
+                const whatsappData = data.data_sources?.whatsapp || {};
+                document.getElementById('whatsappCount').textContent = whatsappData.last_24h_count || '0';
+                document.getElementById('whatsappTimestamp').textContent = 
+                    whatsappData.latest_date ? new Date(whatsappData.latest_date).toLocaleString() : 'None';
                 
-                // Update vector DB status
-                const vectorDbStatus = document.getElementById('vectorDbStatus');
-                if (data.vector_status === 'ok') {
-                    vectorDbStatus.textContent = 'Healthy';
-                    vectorDbStatus.className = 'status-badge badge bg-success';
+                // Update Vector DB stats
+                const vectorData = data.data_sources?.vector_db || {};
+                const vectorCount = document.getElementById('vectorDbCount');
+                if (vectorData.status === 'ok') {
+                    vectorCount.textContent = vectorData.total_documents || '0';
+                    
+                    // Update vector DB status with total vectors count instead of status badge
+                    document.getElementById('vectorDbStatus').innerHTML = 
+                        `<small>Total Vectors: ${vectorData.total_vectors || '0'}</small>`;
                 } else {
-                    vectorDbStatus.textContent = 'Error';
-                    vectorDbStatus.className = 'status-badge badge bg-danger';
+                    vectorCount.textContent = '-';
+                    document.getElementById('vectorDbStatus').innerHTML = `<small>Error</small>`;
+                    document.getElementById('vectorDbStatus').className = 'text-danger';
                 }
                 
-                // Set last updated time
-                document.getElementById('lastUpdatedTime').textContent = new Date().toLocaleTimeString();
+                // Update health dashboard timestamp
+                const now = new Date();
+                document.getElementById('lastUpdatedTime').textContent = now.toLocaleTimeString();
                 
                 // Add pulse animation to show data has been updated
                 document.querySelectorAll('.health-item').forEach(item => {
@@ -447,7 +457,15 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error updating health dashboard:', error);
-                document.getElementById('lastUpdatedTime').textContent = 'Failed to update';
+                // Show error state
+                document.getElementById('emailCount').textContent = '-';
+                document.getElementById('emailTimestamp').textContent = 'Error';
+                document.getElementById('whatsappCount').textContent = '-';
+                document.getElementById('whatsappTimestamp').textContent = 'Error';
+                document.getElementById('vectorDbCount').textContent = '-';
+                const vectorDbStatus = document.getElementById('vectorDbStatus');
+                vectorDbStatus.textContent = 'Error';
+                vectorDbStatus.className = 'status-badge badge bg-danger';
             });
     }
 });
