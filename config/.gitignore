@@ -3,6 +3,13 @@ gmail_credentials.json
 email_cache.json
 Downloads/
 secrets/
+whatsapp_session/
+
+# WhatsApp Web.js session data and cache
+**/wwebjs_auth/
+**/.wwebjs_auth/
+**/Service Worker/
+**/Cache/
 
 # Include a README to ensure the directory is tracked
 !README.md 

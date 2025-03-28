@@ -40,3 +40,16 @@ data/
 *.csv
 *.xlsx
 *.db 
+
+# WhatsApp Web.js session data
+src/whatsapp/.wwebjs_auth/
+.wwebjs_auth/
+**/node_modules/
+**/package-lock.json
+
+# Cache directories
+**/.cache/
+**/Code Cache/
+**/Cache/
+**/Service Worker/
+**/IndexedDB/ 
