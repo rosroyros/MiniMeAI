@@ -141,6 +141,182 @@ header .lead {
     justify-content: flex-end;
 }
 
+/* Citations Styles */
+.citations-container {
+    margin-top: 1.25rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding-top: 0.75rem;
+}
+
+.citations-header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+    font-weight: 600;
+    user-select: none;
+    transition: var(--transition);
+}
+
+.citations-header:hover {
+    color: var(--primary-color);
+}
+
+.citations-header i {
+    margin-right: 0.5rem;
+}
+
+.citations-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+
+.citations-content.open {
+    max-height: 500px;
+    overflow-y: auto;
+    margin-top: 0.75rem;
+}
+
+.citation-item {
+    background-color: white;
+    border-radius: 8px;
+    padding: 0.875rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: var(--transition);
+}
+
+.citation-item:hover {
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.citation-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.citation-source-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--accent-color);  /* Default color */
+    color: white;
+    margin-right: 0.75rem;
+}
+
+/* Source-specific styling */
+.citation-item[data-source-type="email"] .citation-source-icon {
+    background-color: #4285F4;  /* Email blue */
+}
+
+.citation-item[data-source-type="whatsapp"] .citation-source-icon {
+    background-color: #25D366;  /* WhatsApp brand green */
+}
+
+.citation-item[data-source-type="message"] .citation-source-icon {
+    background-color: #9C27B0;  /* Message purple */
+}
+
+/* Source-specific text colors */
+.citation-item[data-source-type="whatsapp"] .citation-type {
+    color: #25D366;  /* WhatsApp brand green */
+}
+
+.citation-item[data-source-type="email"] .citation-type {
+    color: #4285F4;  /* Email blue */
+}
+
+.citation-item[data-source-type="message"] .citation-type {
+    color: #9C27B0;  /* Message purple */
+}
+
+/* Source-specific relevance indicators */
+.citation-item[data-source-type="whatsapp"] .relevance-indicator {
+    background-color: #25D366;  /* WhatsApp brand green */
+}
+
+.citation-item[data-source-type="email"] .relevance-indicator {
+    background-color: #4285F4;  /* Email blue */
+}
+
+.citation-item[data-source-type="message"] .relevance-indicator {
+    background-color: #9C27B0;  /* Message purple */
+}
+
+/* Icon color in health dashboard */
+span.health-source .bi-whatsapp {
+    color: #25D366;  /* WhatsApp brand green */
+}
+
+span.health-source .bi-envelope {
+    color: #4285F4;  /* Email blue */
+}
+
+.citation-source-icon i {
+    font-size: 1rem;
+}
+
+.citation-type {
+    font-weight: 600;
+    color: var(--text-color);
+    margin-right: auto;
+}
+
+.citation-score {
+    font-size: 0.8rem;
+    color: var(--secondary-color);
+    position: relative;
+    margin-left: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.relevance-indicator {
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    height: 3px;
+    background-color: var(--accent-color);
+    border-radius: 1.5px;
+}
+
+.citation-metadata {
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.5rem;
+}
+
+.citation-metadata div {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.citation-snippet {
+    font-size: 0.9rem;
+    font-style: italic;
+    color: var(--secondary-color);
+    background-color: var(--bg-color);
+    border-radius: 6px;
+    padding: 0.75rem;
+    max-height: 6rem;
+    overflow-y: auto;
+    line-height: 1.5;
+}
+
 /* Input Form */
 .card-footer {
     padding: 1.25rem;
@@ -304,10 +480,13 @@ header .lead {
     .col-md-4:last-child .health-item {
         margin-bottom: 0;
     }
+    
+    .citation-metadata {
+        grid-template-columns: 1fr;
+    }
 }
 
-/* New styles for the Health Dashboard */
-
+/* Health Dashboard Styles */
 .health-item {
     padding: 10px 15px;
     border-radius: var(--border-radius);
@@ -353,8 +532,6 @@ header .lead {
     background-color: var(--bg-color);
 }
 
-/* End of Health Dashboard styles */
-
 /* Animations for gauges */
 @keyframes pulse {
     0% { transform: scale(1); }
@@ -364,4 +541,31 @@ header .lead {
 
 .pulse-animation {
     animation: pulse 0.5s ease-in-out;
+}
+
+/* WhatsApp icon color */
+.bi-whatsapp {
+    color: #25D366;
+}
+
+/* Source-specific colors */
+.citation-item[data-source-type="email"] .citation-source-icon {
+    background-color: #4285F4;
+}
+
+.citation-item[data-source-type="whatsapp"] .citation-source-icon {
+    background-color: #25D366;
+}
+
+.citation-item[data-source-type="text"] .citation-source-icon {
+    background-color: #6c757d;
+}
+
+/* WhatsApp specific styling */
+.citation-item[data-source-type="whatsapp"] .citation-source-icon {
+    background-color: #25D366;  /* WhatsApp brand green */
+}
+
+span.health-source .bi-whatsapp {
+    color: #25D366;  /* WhatsApp brand green */
 }

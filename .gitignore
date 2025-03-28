@@ -52,4 +52,37 @@ src/whatsapp/.wwebjs_auth/
 **/Code Cache/
 **/Cache/
 **/Service Worker/
-**/IndexedDB/ 
+**/IndexedDB/
+
+# WhatsApp session files
+src/whatsapp/.wwebjs_auth/
+
+# Temporary files and directories
+temp/
+whatsapp_deploy_temp/
+whatsapp_deployment.tar.gz
+.cursor/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Test and analysis files
+*.json
+test_*.py
+check_*.py
+analyze_*.py
+fix_*.py
+reset_*.py
+query_*.py
+
+# Deployment scripts
+deploy_*.sh
+cleanup_*.sh
+
+# Temporary and backup files
+*~
+*.bak
+test_file
+permission_test.txt
+result.json 

@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const exampleQueries = document.querySelectorAll('.example-query');
     const refreshHealthBtn = document.getElementById('refreshHealthBtn');
     
+    console.log("MiniMeAI client initialized");
+    
     // Store conversation history
     let conversationHistory = [];
     
@@ -46,6 +48,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show loading indicator
             showLoading(true);
             
+            console.log("Sending query to server:", query);
+            
             // Send AJAX request
             fetch('/ask', {
                 method: 'POST',
@@ -66,18 +70,31 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(data => {
                 showLoading(false);
+                console.log("Response received:", data);
                 
                 if (data.error) {
                     addAIMessage('Sorry, I encountered an error: ' + data.error);
                 } else if (data.response) {
-                    // Add AI message to chat
-                    addAIMessage(data.response);
+                    // Add AI message to chat with citations if available
+                    if (data.citations && data.citations.length > 0) {
+                        console.log("Citations received:", data.citations);
+                        console.log("Citation types:", data.citations.map(c => c.source_type));
+                        console.log("Citation metadata:", data.citations.map(c => c.metadata));
+                        console.log("Citation count:", data.citations.length);
+                        console.log("First citation:", JSON.stringify(data.citations[0]));
+                        addAIMessageWithCitations(data.response, data.citations);
+                    } else {
+                        console.log("No citations received, data keys:", Object.keys(data));
+                        console.log("Full response object:", JSON.stringify(data));
+                        addAIMessage(data.response);
+                    }
                 } else {
                     addAIMessage('Sorry, I didn\'t get a response from the server.');
                 }
             })
             .catch(error => {
                 showLoading(false);
+                console.error("Error processing request:", error);
                 addAIMessage('Sorry, there was an error processing your request: ' + error.message);
             });
         });
@@ -178,10 +195,134 @@ document.addEventListener('DOMContentLoaded', function() {
         saveConversationHistory();
     }
     
-    // Helper function to append message to chat and scroll to bottom
+    // Helper function to add AI message with citations to chat
+    function addAIMessageWithCitations(message, citations) {
+        console.log("Adding AI message with citations. Citation count:", citations.length);
+        
+        // Format the citations HTML
+        const citationsHtml = formatCitations(citations);
+        console.log("Formatted citations HTML length:", citationsHtml.length);
+        console.log("Citations HTML (first 100 chars):", citationsHtml.substring(0, 100));
+        
+        const messageHtml = `
+            <div class="message ai-message">
+                <div class="message-content">
+                    ${formatMessageText(message)}
+                    <div class="citations-container">
+                        <div class="citations-header" onclick="toggleCitations(this)">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <span>Sources (${citations.length})</span>
+                            <i class="bi bi-chevron-down ms-auto"></i>
+                        </div>
+                        <div class="citations-content">
+                            ${citationsHtml}
+                        </div>
+                    </div>
+                </div>
+                <div class="message-info">
+                    <small class="text-muted">MiniMeAI</small>
+                </div>
+            </div>
+        `;
+        
+        appendMessageToChat(messageHtml);
+        console.log("AI message with citations added to chat");
+        
+        // Add to conversation history (without citations)
+        conversationHistory.push({
+            role: 'assistant',
+            content: message
+        });
+        
+        // Save to session storage
+        saveConversationHistory();
+    }
+    
+    // Helper function to format citations
+    function formatCitations(citations) {
+        console.log("Formatting citations:", citations);
+        
+        if (!Array.isArray(citations)) {
+            console.error("Citations is not an array:", citations);
+            return "Error formatting citations";
+        }
+        
+        return citations.map((citation, index) => {
+            const metadata = citation.metadata || {};
+            let sourceType = citation.source_type || 'message';
+            console.log(`Citation ${index}: type=${sourceType}, metadata=`, metadata);
+            
+            // Detect WhatsApp messages even if they're classified as "message"
+            // Check for WhatsApp indicators in metadata or content
+            if (sourceType === 'message' && 
+                ((metadata.from && metadata.from.toLowerCase().includes('whatsapp')) ||
+                 (metadata.sender && metadata.sender.toLowerCase().includes('whatsapp')) ||
+                 (metadata.chat && metadata.chat.toLowerCase().includes('whatsapp')) ||
+                 (citation.snippet && citation.snippet.toLowerCase().includes('whatsapp')))) {
+                sourceType = 'whatsapp';
+                console.log(`Reclassified citation ${index} as WhatsApp based on content`);
+            }
+            
+            // Get source type-specific icon
+            let sourceIcon = '';
+            if (sourceType === 'email') {
+                sourceIcon = '<i class="bi bi-envelope-fill"></i>';
+            } else if (sourceType === 'whatsapp') {
+                sourceIcon = '<i class="bi bi-whatsapp"></i>';
+            } else {
+                sourceIcon = '<i class="bi bi-chat-text-fill"></i>';
+            }
+            
+            // Format metadata based on source type
+            let metadataHtml = '';
+            if (sourceType === 'email') {
+                metadataHtml = `
+                    <div><strong>From:</strong> ${escapeHtml(metadata.from || 'Unknown')}</div>
+                    <div><strong>Subject:</strong> ${escapeHtml(metadata.subject || 'No Subject')}</div>
+                    <div><strong>Date:</strong> ${escapeHtml(metadata.date || 'Unknown')}</div>
+                `;
+            } else if (sourceType === 'whatsapp') {
+                metadataHtml = `
+                    <div><strong>From:</strong> ${escapeHtml(metadata.sender || 'Unknown')}</div>
+                    <div><strong>Chat:</strong> ${escapeHtml(metadata.chat || 'Unknown')}</div>
+                    <div><strong>Date:</strong> ${escapeHtml(metadata.date || 'Unknown')}</div>
+                `;
+            } else {
+                metadataHtml = `
+                    <div><strong>From:</strong> ${escapeHtml(metadata.sender || metadata.from || 'Unknown')}</div>
+                    <div><strong>Subject:</strong> ${escapeHtml(metadata.subject || 'No Subject')}</div>
+                    <div><strong>Date:</strong> ${escapeHtml(metadata.date || 'Unknown')}</div>
+                `;
+            }
+            
+            // Convert relevance score to percentage
+            const relevancePercentage = Math.round((citation.relevance_score || 0) * 100);
+            
+            return `
+            <div class="citation-item" data-source-type="${sourceType}">
+                <div class="citation-header">
+                    <div class="citation-source-icon">${sourceIcon}</div>
+                    <div class="citation-type">${sourceType.charAt(0).toUpperCase() + sourceType.slice(1)}</div>
+                    <div class="citation-score">
+                        <div class="relevance-indicator" style="width: ${relevancePercentage}%"></div>
+                        <span>${relevancePercentage}% relevance</span>
+                    </div>
+                </div>
+                <div class="citation-metadata">
+                    ${metadataHtml}
+                </div>
+                <div class="citation-snippet">
+                    ${escapeHtml(citation.snippet || '')}
+                </div>
+            </div>
+            `;
+        }).join('');
+    }
+    
+    // Helper function to append message HTML to chat
     function appendMessageToChat(messageHtml) {
-        // Add message to chat
-        chatMessages.insertAdjacentHTML('beforeend', messageHtml);
+        console.log("Appending message to chat:", messageHtml.substring(0, 100) + "...");
+        chatMessages.innerHTML += messageHtml;
         
         // Scroll to bottom
         chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -239,125 +380,97 @@ document.addEventListener('DOMContentLoaded', function() {
         ).join('');
     }
     
-    // Helper function to show/hide loading indicator
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Show/hide loading indicator
     function showLoading(show) {
         if (loadingIndicator) {
-            loadingIndicator.classList.toggle('d-none', !show);
+            if (show) {
+                loadingIndicator.classList.remove('d-none');
+            } else {
+                loadingIndicator.classList.add('d-none');
+            }
         }
     }
     
-    // Helper function to escape HTML
-    function escapeHtml(unsafe) {
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-    
-    // Health Dashboard Functions
-    
+    // Initialize health dashboard
     function initializeHealthDashboard() {
-        // Initial update without setting up auto-refresh
         updateHealthDashboard();
     }
     
+    // Update health dashboard data
     function updateHealthDashboard() {
         // Show loading state
-        document.getElementById('lastUpdatedTime').textContent = 'Updating...';
+        document.getElementById('emailCount').textContent = '...';
+        document.getElementById('whatsappCount').textContent = '...';
+        document.getElementById('vectorDbCount').textContent = '...';
+        document.getElementById('lastUpdatedTime').textContent = '...';
         
-        // Fetch health data
+        // Get health data
         fetch('/health')
             .then(response => response.json())
             .then(data => {
-                // Update last updated time
-                const lastUpdatedEl = document.getElementById('lastUpdatedTime');
-                if (lastUpdatedEl) {
-                    const now = new Date();
-                    lastUpdatedEl.textContent = now.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                // Update the health dashboard with the data
+                document.getElementById('emailCount').textContent = data.email_count || '0';
+                document.getElementById('emailTimestamp').textContent = data.last_email_time || 'None';
+                
+                document.getElementById('whatsappCount').textContent = data.whatsapp_count || '0';
+                document.getElementById('whatsappTimestamp').textContent = data.last_whatsapp_time || 'None';
+                
+                document.getElementById('vectorDbCount').textContent = data.vector_count || '0';
+                
+                // Update vector DB status
+                const vectorDbStatus = document.getElementById('vectorDbStatus');
+                if (data.vector_status === 'ok') {
+                    vectorDbStatus.textContent = 'Healthy';
+                    vectorDbStatus.className = 'status-badge badge bg-success';
+                } else {
+                    vectorDbStatus.textContent = 'Error';
+                    vectorDbStatus.className = 'status-badge badge bg-danger';
                 }
                 
-                // Update email metrics
-                if (data.data_sources && data.data_sources.email) {
-                    const emailData = data.data_sources.email;
-                    
-                    // Update count
-                    const emailCountEl = document.getElementById('emailCount');
-                    if (emailCountEl) {
-                        emailCountEl.textContent = emailData.last_24h_count || 0;
-                    }
-                    
-                    // Update timestamp
-                    const emailTimestampEl = document.getElementById('emailTimestamp');
-                    if (emailTimestampEl && emailData.latest_date) {
-                        const date = new Date(emailData.latest_date);
-                        // Format as DD/MM
-                        const shortDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-                        emailTimestampEl.textContent = shortDate;
-                        
-                        // Add full timestamp as tooltip
-                        const fullTimestamp = date.toLocaleString();
-                        emailTimestampEl.parentElement.parentElement.title = fullTimestamp;
-                    } else if (emailTimestampEl) {
-                        emailTimestampEl.textContent = '-';
-                    }
-                }
+                // Set last updated time
+                document.getElementById('lastUpdatedTime').textContent = new Date().toLocaleTimeString();
                 
-                // Update WhatsApp metrics
-                if (data.data_sources && data.data_sources.whatsapp) {
-                    const whatsappData = data.data_sources.whatsapp;
-                    
-                    // Update count
-                    const whatsappCountEl = document.getElementById('whatsappCount');
-                    if (whatsappCountEl) {
-                        whatsappCountEl.textContent = whatsappData.last_24h_count || 0;
-                    }
-                    
-                    // Update timestamp
-                    const whatsappTimestampEl = document.getElementById('whatsappTimestamp');
-                    if (whatsappTimestampEl && whatsappData.latest_date) {
-                        const date = new Date(whatsappData.latest_date);
-                        // Format as DD/MM
-                        const shortDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-                        whatsappTimestampEl.textContent = shortDate;
-                        
-                        // Add full timestamp as tooltip
-                        const fullTimestamp = date.toLocaleString();
-                        whatsappTimestampEl.parentElement.parentElement.title = fullTimestamp;
-                    } else if (whatsappTimestampEl) {
-                        whatsappTimestampEl.textContent = '-';
-                    }
-                }
-                
-                // Update Vector DB metrics
-                if (data.data_sources && data.data_sources.vector_db) {
-                    const vectorDbData = data.data_sources.vector_db;
-                    
-                    // Update count
-                    const vectorDbCountEl = document.getElementById('vectorDbCount');
-                    if (vectorDbCountEl) {
-                        vectorDbCountEl.textContent = vectorDbData.total_count || 0;
-                    }
-                    
-                    // Update status
-                    const vectorDbStatusEl = document.getElementById('vectorDbStatus');
-                    if (vectorDbStatusEl) {
-                        const status = vectorDbData.status || 'unknown';
-                        vectorDbStatusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
-                        
-                        // Update badge class
-                        vectorDbStatusEl.className = 'badge ' + 
-                            (status === 'ok' ? 'bg-success' : 
-                             status === 'error' ? 'bg-danger' : 'bg-secondary');
-                    }
-                }
+                // Add pulse animation to show data has been updated
+                document.querySelectorAll('.health-item').forEach(item => {
+                    item.classList.add('pulse-animation');
+                    setTimeout(() => {
+                        item.classList.remove('pulse-animation');
+                    }, 500);
+                });
             })
             .catch(error => {
                 console.error('Error updating health dashboard:', error);
-                
-                // Update with error state
                 document.getElementById('lastUpdatedTime').textContent = 'Failed to update';
             });
     }
 });
+
+// Function to toggle citations visibility - make it global so it can be called from HTML
+window.toggleCitations = function(element) {
+    console.log("Toggle citations called", element);
+    const container = element.closest('.citations-container');
+    const content = container.querySelector('.citations-content');
+    const icon = element.querySelector('.bi-chevron-down, .bi-chevron-up');
+    
+    console.log("Citations container:", container);
+    console.log("Citations content:", content);
+    console.log("Citations icon:", icon);
+    
+    content.classList.toggle('open');
+    console.log("Toggled 'open' class:", content.classList.contains('open'));
+    
+    if (content.classList.contains('open')) {
+        icon.classList.remove('bi-chevron-down');
+        icon.classList.add('bi-chevron-up');
+    } else {
+        icon.classList.remove('bi-chevron-up');
+        icon.classList.add('bi-chevron-down');
+    }
+};
